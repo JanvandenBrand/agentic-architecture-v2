@@ -14,10 +14,8 @@ architecture approval.
 - Network access for `git clone` and `npm ci`. The validation and smoke commands run offline after
   dependencies are installed.
 
-The commands below are the verified Windows path. On Linux or macOS, use the same `git`, `npm`, and
-Node.js commands in a terminal, replace `Set-Location` with `cd`, use `cat` for the report, and open the
-HTML file with the operating system's normal file command. Those local shell equivalents are expected,
-but this repository does not automate them.
+The PowerShell commands below are the verified Windows path. On Linux, macOS, or Windows Subsystem for
+Linux (WSL), use the [bash equivalent](#bash-on-linux-macos-or-wsl) instead.
 
 From a clean folder:
 
@@ -35,6 +33,24 @@ Invoke-Item .\.aff-smoke\contoso-review\cases\contoso-permit-services\solution-o
 
 If you are evaluating an unmerged branch, check out that branch before `npm ci`.
 
+#### Bash on Linux, macOS, or WSL
+
+```bash
+git clone https://github.com/aramsmith/agentic-architecture-v2.git
+cd agentic-architecture-v2
+node --version
+npm --version
+npm ci --no-audit --no-fund
+npm run validate -- --framework-only
+npm run smoke:contoso -- --keep-output .aff-smoke/contoso-review
+cat .aff-smoke/contoso-review/smoke-report.json
+```
+
+Open `.aff-smoke/contoso-review/cases/contoso-permit-services/solution-overview.html` with `xdg-open`
+on Linux or `open` on macOS. In WSL, open it in the Windows browser with
+`explorer.exe "$(wslpath -w <file>)"`. These commands are manually exercised on WSL 2 (Ubuntu 22.04,
+Node.js 24) but are not automated by this repository.
+
 ### Successful evidence
 
 - Framework validation reports no errors.
@@ -50,6 +66,8 @@ finished:
 ```powershell
 Remove-Item -Recurse -Force .\.aff-smoke\contoso-review
 ```
+
+In bash: `rm -rf .aff-smoke/contoso-review`.
 
 See the committed [representative evidence snapshot](examples/contoso-phase-0-evidence.md) before
 retaining output if you only need to understand the result.

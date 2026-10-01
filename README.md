@@ -28,6 +28,7 @@ See [CONTRIBUTORS.md](CONTRIBUTORS.md) for the contributor policy and full list.
 - **[Ten-minute architect quick start](docs/quick-start.md)** — clone to verified synthetic evidence.
 - [Representative Contoso Phase 0 evidence](docs/examples/contoso-phase-0-evidence.md)
 - [Compatibility and support matrix](docs/compatibility.md)
+- [Claude Code host](docs/claude-code.md) — run the agents with Claude Code; reviewer models are chosen per case
 - [Troubleshooting](docs/troubleshooting.md)
 - [Release process and version policy](docs/release-process.md)
 - [Contracts](docs/aff-contracts.md) and [renderer trust boundary](docs/aff-renderer.md)

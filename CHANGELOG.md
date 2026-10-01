@@ -5,6 +5,17 @@ All notable user-visible changes are recorded here. Versions follow the separate
 
 ## [Unreleased]
 
+### Added
+
+- An optional Claude Code host adapter. `.claude/agents/` and `.claude/skills/` hold thin wrappers that
+  point to the authoritative `.github` profiles, and `CLAUDE.md` translates host-specific wording.
+  Framework validation now checks the adapter whenever `.claude/` exists: one wrapper per lifecycle
+  agent and skill, tool grants mirroring each profile exactly, exact `claude-*` default models, an
+  AFF-A default that differs from every phase owner, a Microsoft Learn MCP server matching the
+  profiles, and settings that deny `npm run approve` and `npm run identity:create` to agents. AFF-A and
+  AFF-B models are chosen per case in the Phase 0 model plan. Real cases remain blocked until the
+  schema contract accepts Claude model IDs; see [`docs/claude-code.md`](docs/claude-code.md).
+
 ## [1.1.0] - 2026-09-04
 
 ### Added

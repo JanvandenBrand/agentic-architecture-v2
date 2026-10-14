@@ -15,7 +15,8 @@ You need:
 GitHub Copilot is needed only when manually checking agent or skill discovery. Azure access,
 credentials, model access, and customer data are not needed for the normal contribution workflow.
 
-From a clean clone in Windows PowerShell:
+From a clean clone in Windows PowerShell (on Linux, macOS, or WSL, use `cd` and the same `git` and
+`npm` commands in bash):
 
 ```powershell
 git clone https://github.com/aramsmith/agentic-architecture-v2.git

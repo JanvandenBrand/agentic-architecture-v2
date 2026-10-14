@@ -44,7 +44,8 @@ Five stages, in order. Each one is a safe stopping point.
 
 Offline. No GitHub Copilot, no Azure, no approval key, no credentials.
 
-**Prerequisites:** Git, Node.js 22 or later, npm, Windows PowerShell.
+**Prerequisites:** Git, Node.js 22 or later, npm, Windows PowerShell. On Linux, macOS, or WSL, use the
+bash commands in the [quick start](docs/quick-start.md).
 
 ```powershell
 git clone https://github.com/aramsmith/agentic-architecture-v2.git

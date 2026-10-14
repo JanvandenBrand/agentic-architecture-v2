@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/aramsmith/agentic-architecture-v2/schemas/aff/1.1.0/review-record.schema.json",
+  "title": "AFF reviewer record 1.1.0",
+  "type": "object",
+  "required": ["schemaVersion", "recordType", "caseName", "artifactPrefix", "reviewer", "model", "phaseId", "round", "final", "subjectArtifacts", "confirmedItems", "findings", "verdict", "rationale", "reviewedAt", "residualGaps", "requiredActions"],
+  "properties": {
+    "schemaVersion": { "$ref": "shared.schema.json#/$defs/schemaVersion" },
+    "recordType": { "const": "review-record" },
+    "caseName": { "$ref": "shared.schema.json#/$defs/caseName" },
+    "artifactPrefix": { "$ref": "shared.schema.json#/$defs/artifactPrefix" },
+    "reviewer": { "enum": ["AFF-A", "AFF-B"] },
+    "model": { "type": "string", "pattern": "^(?:gpt-|claude-)" },
+    "phaseId": { "$ref": "shared.schema.json#/$defs/phaseId" },
+    "round": { "type": "integer", "minimum": 1 },
+    "final": { "type": "boolean" },
+    "subjectArtifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "shared.schema.json#/$defs/artifactBinding" }
+    },
+    "confirmedItems": { "type": "array", "items": { "type": "string" } },
+    "findings": { "type": "array", "items": { "$ref": "shared.schema.json#/$defs/finding" } },
+    "verdict": { "enum": ["CONFORMS", "CONFORMS-WITH-GAPS", "DIVERGES"] },
+    "rationale": { "type": "string", "minLength": 1 },
+    "reviewedAt": { "type": "string", "format": "date-time" },
+    "residualGaps": { "type": "array", "items": { "type": "string" } },
+    "requiredActions": { "type": "array", "items": { "type": "string" } },
+    "supersedes": { "$ref": "shared.schema.json#/$defs/casePath" },
+    "extensions": { "$ref": "shared.schema.json#/$defs/extensions" }
+  },
+  "additionalProperties": false
+}

@@ -219,6 +219,9 @@ describe("repository governance", () => {
       "/.github/pull_request_template.md",
       "/.github/agents/",
       "/.github/skills/",
+      "/.claude/",
+      "/CLAUDE.md",
+      "/.mcp.json",
       "/.github/workflows/",
       "/schemas/",
       "/package.json",
@@ -281,6 +284,49 @@ describe("repository governance", () => {
         : [],
     );
     expect(ecosystems.sort()).toEqual(["github-actions", "npm"]);
+  });
+
+  it("runs every test on Windows and Ubuntu behind the stable validation check", async () => {
+    const workflow = await readYaml(".github/workflows/validate.yml");
+    if (!isRecord(workflow) || !isRecord(workflow.jobs)) {
+      throw new Error("Repository validation must declare jobs.");
+    }
+    const checks = workflow.jobs.checks;
+    const gate = workflow.jobs.validate;
+    if (
+      !isRecord(checks) ||
+      !isRecord(checks.strategy) ||
+      !isRecord(checks.strategy.matrix) ||
+      !Array.isArray(checks.steps) ||
+      !isRecord(gate) ||
+      !Array.isArray(gate.steps)
+    ) {
+      throw new Error("Repository validation needs a platform matrix and aggregate gate.");
+    }
+
+    expect(checks.strategy.matrix.os).toEqual(["ubuntu-latest", "windows-latest"]);
+    expect(checks.strategy["fail-fast"]).toBe(false);
+    expect(checks["runs-on"]).toBe("${{ matrix.os }}");
+    const commands = checks.steps.flatMap((step) =>
+      isRecord(step) && typeof step.run === "string" ? [step.run] : [],
+    );
+    expect(commands).toEqual(expect.arrayContaining([
+      "npm test",
+      "npm run docs:check",
+      "npm run typecheck",
+      "npm run build",
+      "npm run validate -- --framework-only",
+      "npm run smoke:contoso",
+      "npm run smoke:contoso -- --host github-copilot --schema-version 1.1.0",
+      "npm run smoke:contoso -- --host claude-code --schema-version 1.1.0",
+    ]));
+    expect(gate.name).toBe("Repository validation");
+    expect(gate.needs).toBe("checks");
+    expect(gate.if).toBe("always()");
+    expect(gate.steps).toContainEqual(expect.objectContaining({
+      env: { CHECKS_RESULT: "${{ needs.checks.result }}" },
+      run: 'test "$CHECKS_RESULT" = success',
+    }));
   });
 
   it("keeps lifecycle, profiles, skills, and AFF safety boundaries synchronised", async () => {
@@ -395,5 +441,50 @@ describe("repository governance", () => {
     );
 
     expect((await validateFramework(repositoryRoot)).errors).toEqual([]);
+  });
+
+  it("keeps shared host policy and interview authority explicit", async () => {
+    const [contract, coordinator, requirements, claude] = await Promise.all(
+      [
+        ".github/agents/AFF-OPERATING-CONTRACT.md",
+        ".github/agents/AFF-0-coordinator.agent.md",
+        ".github/agents/AFF-1-requirements.agent.md",
+        "CLAUDE.md",
+      ].map(async (file) =>
+        (await readFile(path.join(repositoryRoot, file), "utf8"))
+          .replace(/\s+/gu, " "),
+      ),
+    );
+    expect(contract).toContain("New cases use AFF contract version `1.1.0`");
+    expect(contract).toContain("existing `1.0.0` cases retain their version");
+    expect(contract).toContain("Never migrate, normalise, re-sign, or rewrite existing case evidence.");
+    expect(contract).toContain("The first journal event establishes the host");
+    expect(contract).toContain("A substitution requires an explicit human decision and `approvalReference`");
+    expect(contract).toContain("different model from every phase owner");
+    expect(contract).toContain("Model-generated self-identification is not attestation.");
+    expect(contract).toContain("execution remains blocked");
+    expect(contract).not.toContain("All agents use GPT models");
+    expect(coordinator).toContain("Return the exact human answer and decision ID to AFF-1");
+    expect(coordinator).toContain("Only AFF-1 updates `interview-decisions` and chooses the next question");
+    expect(requirements).toContain("decisions[].question");
+    expect(requirements).toContain("decisions[].answer");
+    expect(requirements).toContain("Append corrections to `corrections` without rewriting earlier evidence.");
+    expect(requirements).toContain("cancellation, and interruption are not consent");
+    expect(claude).toContain("not an operating-system security boundary");
+
+    const expectedTools: Record<string, string[]> = {
+      "AFF-0-coordinator": ["read", "search", "edit", "execute", "agent", "todo"],
+      "AFF-1-requirements": ["read", "search", "edit", "web"],
+      "AFF-A-rubber-duck": ["read", "search", "edit", "web"],
+    };
+    for (const [owner, tools] of Object.entries(expectedTools)) {
+      const file = `.github/agents/${owner}.agent.md`;
+      const profile = await parseProfile(path.join(repositoryRoot, file), file, "agent");
+      expect(profile.errors).toEqual([]);
+      expect(profile.frontmatter?.tools).toEqual(tools);
+      expect(profile.frontmatter?.model).toBe(
+        owner === "AFF-A-rubber-duck" ? "gpt-5.4" : "gpt-5.6-sol",
+      );
+    }
   });
 });

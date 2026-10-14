@@ -1,9 +1,9 @@
 # Release process
 
 AFF uses `v1.0.0` as its initial repository release line. A changelog entry alone does not create the
-corresponding GitHub tag or release. The repository tool package is `1.1.0`, the lifecycle is `2.0.0`,
-and the schema contract is `1.0.0`; these versions describe different contracts and must not be collapsed
-into one number.
+corresponding GitHub tag or release. The repository tool package is `1.2.0`, the lifecycle is `2.1.0`,
+and the schema write default is `1.1.0`, with `1.0.0` still supported. These versions describe different
+contracts and must not be collapsed into one number.
 
 ## Version decisions
 
@@ -30,6 +30,8 @@ Document cross-contract dependencies in the changelog and, when users must act, 
 7. The release commit contains no real case data, credentials, secrets, generated mutable workspace, or
    unreviewed binary evidence.
 8. A human maintainer confirms the tag, release notes, licence, support boundary, and rollback approach.
+9. Any live Claude support claim has passed the separate [host qualification](claude-code.md#live-host-qualification)
+   gate. Otherwise the release must label that behaviour unqualified. Synthetic checks are not a substitute.
 
 Run from a clean checkout of the proposed release commit:
 
@@ -41,6 +43,8 @@ npm run typecheck
 npm run build
 npm run validate -- --framework-only
 npm run smoke:contoso
+npm run smoke:contoso -- --host github-copilot --schema-version 1.1.0
+npm run smoke:contoso -- --host claude-code --schema-version 1.1.0
 git status --short
 ```
 

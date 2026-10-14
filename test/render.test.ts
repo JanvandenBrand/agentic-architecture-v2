@@ -199,6 +199,27 @@ afterEach(async () => {
 });
 
 describe("phase HTML renderer", () => {
+  it("renders partial new-version metadata before model plan and approval exist", async () => {
+    const html = await renderMarkdown("# Phase 0\n\nPartial metadata.\n", async (caseRoot) => {
+      const metadataPath = path.join(caseRoot, "0-coordination", "sample-input-inventory.json");
+      const metadata = JSON.parse(await readFile(metadataPath, "utf8"));
+      metadata.schemaVersion = "1.1.0";
+      await writeFile(metadataPath, JSON.stringify(metadata));
+    });
+    expect(html).toContain("Partial metadata.");
+  });
+
+  it("rejects mixed-version phase metadata without requiring an approval", async () => {
+    await expect(renderMarkdown("# Phase 0\n\nMixed metadata.\n", async (caseRoot) => {
+      const phaseRoot = path.join(caseRoot, "0-coordination");
+      const metadata = JSON.parse(await readFile(
+        path.join(phaseRoot, "sample-input-inventory.json"), "utf8",
+      ));
+      metadata.schemaVersion = "1.1.0";
+      await writeFile(path.join(phaseRoot, "sample-second-input-inventory.json"), JSON.stringify(metadata));
+    })).rejects.toThrow(/mixes AFF record schema versions/u);
+  });
+
   it("renders safe Markdown as accessible standalone HTML", async () => {
     const { caseRoot, outputPath } = await createCase(
       "# Phase 0\n\n[Jump to scope](#scope).\n\n## Scope\n\n| Item | State |\n| --- | --- |\n| Permit | Ready |\n",

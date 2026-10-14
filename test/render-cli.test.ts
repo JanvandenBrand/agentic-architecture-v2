@@ -23,7 +23,7 @@ afterEach(async () => {
 });
 
 describe("aff-render CLI", () => {
-  it("renders a phase using repository-relative case arguments", async () => {
+  it.each(["1.0.0", "1.1.0"])("renders partial %s metadata using repository-relative case arguments", async (schemaVersion) => {
     const root = await mkdtemp(path.join(tmpdir(), "aff-render-cli-"));
     temporaryDirectories.push(root);
     const phaseRoot = path.join(root, "cases", "sample", "0-coordination");
@@ -39,7 +39,7 @@ describe("aff-render CLI", () => {
     await writeFile(
       path.join(phaseRoot, "sample-input-inventory.json"),
       `${JSON.stringify({
-        schemaVersion: "1.0.0",
+        schemaVersion,
         recordType: "input-inventory",
         caseName: "sample",
         artifactPrefix: "sample",

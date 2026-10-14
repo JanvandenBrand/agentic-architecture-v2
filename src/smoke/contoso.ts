@@ -17,13 +17,19 @@ import { bindingSet, type Binding } from "../case/review-records.js";
 import { isRecord } from "../common/json.js";
 import { validateFramework } from "../framework/index.js";
 import { readLifecycle } from "../framework/lifecycle.js";
+import { readHostModelDefaults, type ExecutionHost } from "../framework/hosts.js";
 import { renderPhaseHtml, renderSolutionOverview } from "../render/index.js";
+import type { ContractVersion } from "../schema/catalogue.js";
 
 const CASE_PATH = "cases/contoso-permit-services";
 const CASE_NAME = "contoso-permit-services";
 const ARTIFACT_PREFIX = "contoso";
 const QUESTION =
   "Which measurable business outcome must the permit service achieve first, and who owns that measure?";
+const HOST_NEUTRAL_EXPECTATIONS = new Map([
+  ["AFF-0 records the approved GPT model matrix", "AFF-0 records the selected host model matrix"],
+  ["AFF-A uses gpt-5.4 and differs from AFF-0 and AFF-1", "AFF-A differs from every phase-owner assignment"],
+]);
 const ACTIONS_PERFORMED = [
   "framework-static-verification",
   "source-inventory",
@@ -41,6 +47,13 @@ function ordinalCompare(left: string, right: string): number {
 export interface ContosoSmokeOptions {
   repositoryRoot: string;
   keepOutputPath?: string;
+  host?: ExecutionHost;
+  schemaVersion?: ContractVersion;
+}
+
+export interface SmokeCaseOptions {
+  host: ExecutionHost;
+  schemaVersion: ContractVersion;
 }
 
 export interface ContosoSmokeResult {
@@ -134,13 +147,32 @@ async function copySmokeFoundation(
       recursive: true,
     }),
     cp(path.join(repositoryRoot, "README.md"), path.join(workspaceRoot, "README.md")),
-    cp(path.join(repositoryRoot, "cases"), path.join(workspaceRoot, "cases"), {
-      recursive: true,
+    cp(
+      path.join(repositoryRoot, "cases", "_template", "input", "architecture-brief.md"),
+      path.join(workspaceRoot, "cases", "_template", "input", "architecture-brief.md"),
+    ),
+    ...["architecture-brief.md", "phase-0-test-expectations.json"].map((file) =>
+      cp(
+        path.join(repositoryRoot, "cases", CASE_NAME, "input", file),
+        path.join(workspaceRoot, "cases", CASE_NAME, "input", file),
+      ),
+    ),
+    ...[".claude", ".mcp.json", "CLAUDE.md"].map(async (file) => {
+      const source = path.join(repositoryRoot, file);
+      try {
+        await stat(source);
+      } catch (error: unknown) {
+        if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+          return;
+        }
+        throw error;
+      }
+      await cp(source, path.join(workspaceRoot, file), { recursive: true });
     }),
   ]);
 }
 
-function phaseZeroMarkdown(): string {
+function phaseZeroMarkdown(models: Map<string, string>): string {
   return `# Phase 0 - Coordinate
 
 > Synthetic test evidence only. This offline smoke journey is not a real architecture approval and does not test a live model.
@@ -159,7 +191,7 @@ The journey inventories the committed Contoso brief, fixes the approved model ma
 
 ## Model and reviewer boundary
 
-AFF-0 and AFF-1 use \`gpt-5.6-sol\`. AFF-A uses the separately assigned \`gpt-5.4\`. This harness validates assignments but makes zero model calls.
+AFF-0 and AFF-1 use \`${models.get("AFF-0-coordinator")}\`. AFF-A uses the separately assigned \`${models.get("AFF-A-rubber-duck")}\`. This harness validates assignments but makes zero model calls.
 
 ## Assurance route
 
@@ -179,23 +211,27 @@ No deployment, Azure access, live runtime test, credential storage, GitHub OIDC,
 }
 
 function modelPlan(
-  lifecycle: Awaited<ReturnType<typeof readLifecycle>>,
+  models: Map<string, string>,
+  options: SmokeCaseOptions,
 ): Record<string, unknown> {
   return {
-    schemaVersion: "1.0.0",
+    schemaVersion: options.schemaVersion,
+    ...(options.schemaVersion === "1.1.0" ? { host: options.host } : {}),
     recordType: "model-plan",
     caseName: CASE_NAME,
     artifactPrefix: ARTIFACT_PREFIX,
-    assignments: [...lifecycle.phases, ...lifecycle.reviewers].map((entry) => ({
-      agent: entry.owner,
-      model: entry.model,
+    assignments: [...models].map(([agent, model]) => ({
+      agent,
+      model,
       rationale:
-        entry.owner === "AFF-A-rubber-duck"
+        agent === "AFF-A-rubber-duck"
           ? "Independent deterministic smoke-review assignment"
-          : "Pinned lifecycle assignment verified by the offline smoke harness",
+          : options.schemaVersion === "1.0.0"
+            ? "Pinned lifecycle assignment verified by the offline smoke harness"
+            : "Selected host default verified by the offline smoke harness; no live availability check",
       available: true,
       separationStatus:
-        entry.owner === "AFF-A-rubber-duck"
+        agent === "AFF-A-rubber-duck"
           ? "SATISFIED"
           : "NOT-APPLICABLE",
     })),
@@ -206,9 +242,10 @@ function reviewRecord(
   reviewer: "AFF-A" | "AFF-B",
   model: string,
   artifacts: Binding[],
+  schemaVersion: ContractVersion,
 ): Record<string, unknown> {
   return {
-    schemaVersion: "1.0.0",
+    schemaVersion,
     recordType: "review-record",
     caseName: CASE_NAME,
     artifactPrefix: ARTIFACT_PREFIX,
@@ -240,6 +277,7 @@ function reviewRecord(
 }
 
 function journalEvent(
+  options: SmokeCaseOptions,
   sequence: number,
   phaseId: string,
   eventType: string,
@@ -248,7 +286,8 @@ function journalEvent(
   extra: Record<string, unknown> = {},
 ): Record<string, unknown> {
   return {
-    schemaVersion: "1.0.0",
+    schemaVersion: options.schemaVersion,
+    ...(options.schemaVersion === "1.1.0" ? { host: options.host } : {}),
     recordType: "run-journal-event",
     caseName: CASE_NAME,
     artifactPrefix: ARTIFACT_PREFIX,
@@ -263,10 +302,30 @@ function journalEvent(
   };
 }
 
+function smokeCaseOptions(
+  options: Pick<ContosoSmokeOptions, "host" | "schemaVersion">,
+): SmokeCaseOptions {
+  if (options.host === undefined && options.schemaVersion === undefined) {
+    return { host: "github-copilot", schemaVersion: "1.0.0" };
+  }
+  if (
+    (options.host !== "github-copilot" && options.host !== "claude-code") ||
+    (options.schemaVersion !== "1.0.0" && options.schemaVersion !== "1.1.0")
+  ) {
+    throw new SmokeError("Specify both a supported host and schema version.");
+  }
+  if (options.schemaVersion === "1.0.0" && options.host !== "github-copilot") {
+    throw new SmokeError("Contract 1.0.0 supports only github-copilot.");
+  }
+  return { host: options.host, schemaVersion: options.schemaVersion };
+}
+
 export async function buildContosoSmokeWorkspace(
   sourceRepositoryRoot: string,
   workspaceRoot: string,
+  options?: SmokeCaseOptions,
 ): Promise<void> {
+  const selected = smokeCaseOptions(options ?? {});
   await copySmokeFoundation(sourceRepositoryRoot, workspaceRoot);
   const framework = await validateFramework(workspaceRoot);
   if (framework.errors.length > 0) {
@@ -279,13 +338,26 @@ export async function buildContosoSmokeWorkspace(
   const phaseRoot = path.join(caseRoot, "0-coordination");
   const inputRoot = path.join(caseRoot, "input");
   await mkdir(phaseRoot, { recursive: true });
+  if (selected.schemaVersion === "1.1.0") {
+    const expectationsPath = path.join(inputRoot, "phase-0-test-expectations.json");
+    const expectations = parseExpectations(await readJson(expectationsPath));
+    await writeJson(expectationsPath, {
+      ...expectations,
+      mustHold: expectations.mustHold.map((label) => HOST_NEUTRAL_EXPECTATIONS.get(label) ?? label),
+    });
+  }
   const lifecycle = await readLifecycle(workspaceRoot);
+  const defaults = await readHostModelDefaults(workspaceRoot, selected.host, lifecycle);
+  if (defaults.errors.length > 0) {
+    throw new SmokeError(`Host model defaults failed: ${defaults.errors[0]!.message}`);
+  }
+  const models = defaults.models;
   const briefPath = path.join(inputRoot, "architecture-brief.md");
   const briefContent = await readFile(briefPath);
   const briefHash = await hashArtifact(briefPath);
 
   await writeJson(path.join(phaseRoot, "contoso-input-inventory.json"), {
-    schemaVersion: "1.0.0",
+    schemaVersion: selected.schemaVersion,
     recordType: "input-inventory",
     caseName: CASE_NAME,
     artifactPrefix: ARTIFACT_PREFIX,
@@ -306,11 +378,11 @@ export async function buildContosoSmokeWorkspace(
   });
   await writeJson(
     path.join(phaseRoot, "contoso-model-plan.json"),
-    modelPlan(lifecycle),
+    modelPlan(models, selected),
   );
   await writeFile(
     path.join(phaseRoot, "contoso-coordination.md"),
-    phaseZeroMarkdown(),
+    phaseZeroMarkdown(models),
     "utf8",
   );
   await writeJson(path.join(inputRoot, "smoke-phase-1-opening.json"), {
@@ -370,11 +442,11 @@ export async function buildContosoSmokeWorkspace(
     "reviews/aff-b/0/round-1/contoso-aff-b-review.json";
   await writeJson(
     path.join(caseRoot, ...affAPath.split("/")),
-    reviewRecord("AFF-A", "gpt-5.4", artifactHashes),
+    reviewRecord("AFF-A", models.get("AFF-A-rubber-duck")!, artifactHashes, selected.schemaVersion),
   );
   await writeJson(
     path.join(caseRoot, ...affBPath.split("/")),
-    reviewRecord("AFF-B", "gpt-5.6-sol", artifactHashes),
+    reviewRecord("AFF-B", models.get("AFF-B-security-compliance")!, artifactHashes, selected.schemaVersion),
   );
   const reviewHashes = await Promise.all(
     [affAPath, affBPath].map(async (reviewPath) => ({
@@ -387,7 +459,7 @@ export async function buildContosoSmokeWorkspace(
   const approvalPath =
     "approvals/phase-0/contoso-phase-0-synthetic-approval.json";
   await writeJson(path.join(caseRoot, ...approvalPath.split("/")), {
-    schemaVersion: "1.0.0",
+    schemaVersion: selected.schemaVersion,
     recordType: "human-approval",
     caseName: CASE_NAME,
     artifactPrefix: ARTIFACT_PREFIX,
@@ -409,6 +481,7 @@ export async function buildContosoSmokeWorkspace(
 
   const events = [
     journalEvent(
+      selected,
       1,
       "0",
       "PHASE-ENTERED",
@@ -416,6 +489,7 @@ export async function buildContosoSmokeWorkspace(
       "Synthetic offline Phase 0 smoke journey started.",
     ),
     journalEvent(
+      selected,
       2,
       "0",
       "ARTIFACTS-RECORDED",
@@ -424,6 +498,7 @@ export async function buildContosoSmokeWorkspace(
       { artifactHashes },
     ),
     journalEvent(
+      selected,
       3,
       "0",
       "REVIEW-RECORDED",
@@ -432,6 +507,7 @@ export async function buildContosoSmokeWorkspace(
       { reviewHashes: [reviewHashes[0]] },
     ),
     journalEvent(
+      selected,
       4,
       "0",
       "REVIEW-RECORDED",
@@ -440,6 +516,7 @@ export async function buildContosoSmokeWorkspace(
       { reviewHashes: [reviewHashes[1]] },
     ),
     journalEvent(
+      selected,
       5,
       "0",
       "HUMAN-DECISION",
@@ -452,6 +529,7 @@ export async function buildContosoSmokeWorkspace(
       },
     ),
     journalEvent(
+      selected,
       6,
       "0",
       "PHASE-EXITED",
@@ -459,6 +537,7 @@ export async function buildContosoSmokeWorkspace(
       "Phase 0 smoke contract exited after synthetic approval.",
     ),
     journalEvent(
+      selected,
       7,
       "1",
       "PHASE-ENTERED",
@@ -606,13 +685,15 @@ async function collectEvidence(workspaceRoot: string): Promise<SmokeEvidence> {
   const assignments = Array.isArray(modelValue.assignments)
     ? modelValue.assignments.filter(isRecord)
     : [];
-  const expectedModels = new Map(
-    [...lifecycle.phases, ...lifecycle.reviewers].map(({ owner, model }) => [
-      owner,
-      model,
-    ]),
+  const selected = smokeCaseOptions(
+    modelValue.schemaVersion === "1.0.0"
+      ? {}
+      : { host: modelValue.host as ExecutionHost, schemaVersion: modelValue.schemaVersion as ContractVersion },
   );
+  const defaults = await readHostModelDefaults(workspaceRoot, selected.host, lifecycle);
+  const expectedModels = defaults.models;
   const modelMatrixCurrent =
+    defaults.errors.length === 0 &&
     assignments.length === expectedModels.size &&
     assignments.every(
       (assignment) =>
@@ -680,9 +761,10 @@ async function collectEvidence(workspaceRoot: string): Promise<SmokeEvidence> {
       isRecord(governedArtifact) && governedArtifact.sha256 === briefHash,
     modelMatrixCurrent,
     affASeparated:
-      affAAssignment?.model === "gpt-5.4" &&
+      affAAssignment !== undefined &&
+      affAAssignment.model === expectedModels.get("AFF-A-rubber-duck") &&
       affAAssignment.separationStatus === "SATISFIED" &&
-      !lifecycle.phases.some(({ model }) => model === "gpt-5.4"),
+      !lifecycle.phases.some(({ owner }) => expectedModels.get(owner) === affAAssignment.model),
     candidateHashesConverged:
       affABindings.length === 4 &&
       bindingSet(affABindings) === bindingSet(affBBindings),
@@ -771,6 +853,11 @@ export async function verifyContosoSmokeWorkspace(
     await readJson(path.join(caseRoot, "input", "phase-0-test-expectations.json")),
   );
   const evidence = await collectEvidence(workspaceRoot);
+  const modelValue = await readJson(path.join(caseRoot, "0-coordination", "contoso-model-plan.json"));
+  const expectationLabel = (legacy: string): string =>
+    isRecord(modelValue) && modelValue.schemaVersion === "1.1.0"
+      ? HOST_NEUTRAL_EXPECTATIONS.get(legacy) ?? legacy
+      : legacy;
   const mustHoldChecks = new Map<string, boolean>([
     [
       "AFF-0 inventories and hashes the Markdown brief",
@@ -783,11 +870,11 @@ export async function verifyContosoSmokeWorkspace(
         evidence.requirements.length === 0,
     ],
     [
-      "AFF-0 records the approved GPT model matrix",
+      expectationLabel("AFF-0 records the approved GPT model matrix"),
       evidence.modelMatrixCurrent,
     ],
     [
-      "AFF-A uses gpt-5.4 and differs from AFF-0 and AFF-1",
+      expectationLabel("AFF-A uses gpt-5.4 and differs from AFF-0 and AFF-1"),
       evidence.affASeparated,
     ],
     [
@@ -946,9 +1033,10 @@ async function retainOutput(
 export async function runContosoSmoke(
   options: ContosoSmokeOptions,
 ): Promise<ContosoSmokeResult> {
+  const selected = smokeCaseOptions(options);
   const workspaceRoot = await mkdtemp(path.join(tmpdir(), "aff-contoso-smoke-"));
   try {
-    await buildContosoSmokeWorkspace(options.repositoryRoot, workspaceRoot);
+    await buildContosoSmokeWorkspace(options.repositoryRoot, workspaceRoot, selected);
     const result = await verifyContosoSmokeWorkspace(workspaceRoot);
     if (options.keepOutputPath) {
       await retainOutput(

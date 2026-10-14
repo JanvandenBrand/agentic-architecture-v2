@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/aramsmith/agentic-architecture-v2/schemas/aff/1.1.0/run-journal-event.schema.json",
+  "title": "AFF run journal event 1.1.0",
+  "type": "object",
+  "required": ["schemaVersion", "recordType", "caseName", "artifactPrefix", "eventId", "sequence", "timestamp", "phaseId", "eventType", "actor", "summary", "host"],
+  "properties": {
+    "schemaVersion": { "$ref": "shared.schema.json#/$defs/schemaVersion" },
+    "recordType": { "const": "run-journal-event" },
+    "host": { "$ref": "shared.schema.json#/$defs/host" },
+    "caseName": { "$ref": "shared.schema.json#/$defs/caseName" },
+    "artifactPrefix": { "$ref": "shared.schema.json#/$defs/artifactPrefix" },
+    "eventId": { "type": "string", "minLength": 1 },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "phaseId": { "$ref": "shared.schema.json#/$defs/phaseId" },
+    "eventType": {
+      "enum": ["PHASE-ENTERED", "ARTIFACTS-RECORDED", "REVIEW-RECORDED", "BLOCKER", "PHASE-REOPENED", "HUMAN-DECISION", "PHASE-EXITED", "DEPLOYMENT-ATTEMPT", "TEST-ATTEMPT"]
+    },
+    "actor": { "type": "string", "minLength": 1 },
+    "summary": { "type": "string", "minLength": 1 },
+    "artifactHashes": {
+      "type": "array",
+      "items": { "$ref": "shared.schema.json#/$defs/artifactBinding" }
+    },
+    "reviewHashes": {
+      "type": "array",
+      "items": { "$ref": "shared.schema.json#/$defs/artifactBinding" }
+    },
+    "decision": { "enum": ["APPROVED", "REJECTED"] },
+    "extensions": { "$ref": "shared.schema.json#/$defs/extensions" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "eventType": { "const": "ARTIFACTS-RECORDED" }
+        },
+        "required": ["eventType"]
+      },
+      "then": {
+        "required": ["artifactHashes"],
+        "properties": {
+          "artifactHashes": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "shared.schema.json#/$defs/artifactBinding" }
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}

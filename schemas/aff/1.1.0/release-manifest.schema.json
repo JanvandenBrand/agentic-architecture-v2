@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/aramsmith/agentic-architecture-v2/schemas/aff/1.1.0/release-manifest.schema.json",
+  "title": "AFF release manifest 1.1.0",
+  "type": "object",
+  "required": ["schemaVersion", "recordType", "caseName", "artifactPrefix", "releaseId", "createdAt", "artifacts", "validationChecks", "deploymentProcedure"],
+  "properties": {
+    "schemaVersion": { "$ref": "shared.schema.json#/$defs/schemaVersion" },
+    "recordType": { "const": "release-manifest" },
+    "caseName": { "$ref": "shared.schema.json#/$defs/caseName" },
+    "artifactPrefix": { "$ref": "shared.schema.json#/$defs/artifactPrefix" },
+    "releaseId": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "shared.schema.json#/$defs/artifactBinding" }
+    },
+    "validationChecks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "command", "exitCode", "status", "evidencePath"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "command": { "type": "string", "minLength": 1 },
+          "exitCode": { "type": "integer" },
+          "status": { "enum": ["PASS", "FAIL", "BLOCKED"] },
+          "evidencePath": { "$ref": "shared.schema.json#/$defs/casePath" }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": { "status": { "const": "PASS" } },
+              "required": ["status"]
+            },
+            "then": {
+              "properties": { "exitCode": { "const": 0 } }
+            }
+          },
+          {
+            "if": {
+              "properties": { "status": { "const": "FAIL" } },
+              "required": ["status"]
+            },
+            "then": {
+              "properties": { "exitCode": { "not": { "const": 0 } } }
+            }
+          }
+        ],
+        "additionalProperties": false
+      }
+    },
+    "deploymentProcedure": { "$ref": "shared.schema.json#/$defs/artifactBinding" },
+    "extensions": { "$ref": "shared.schema.json#/$defs/extensions" }
+  },
+  "additionalProperties": false
+}

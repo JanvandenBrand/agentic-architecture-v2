@@ -21,13 +21,13 @@ const binding = [
   { path: "0-coordination/sample-coordination.md", sha256: "a".repeat(64) },
 ];
 
-function approvalRecord(extensions?: Record<string, unknown>): LoadedRecord {
+function versionedApprovalRecord(schemaVersion: string, extensions?: Record<string, unknown>): LoadedRecord {
   return {
     file: "approvals/phase-0/sample-approval.json",
     absolutePath: path.join(repositoryRoot, "approvals", "sample.json"),
     snapshotSha256: "b".repeat(64),
     value: {
-      schemaVersion: "1.0.0",
+      schemaVersion,
       recordType: "human-approval",
       caseName: "sample",
       artifactPrefix: "sample",
@@ -50,7 +50,9 @@ function toApproval(record: LoadedRecord): Approval {
   return approval;
 }
 
-describe("approval assurance mode", () => {
+describe.each(["1.0.0", "1.1.0"])("approval assurance mode with %s", (schemaVersion) => {
+  const approvalRecord = (extensions?: Record<string, unknown>): LoadedRecord =>
+    versionedApprovalRecord(schemaVersion, extensions);
   it("resolves an ordinary approval as self-asserted", () => {
     expect(resolveApprovalMode(toApproval(approvalRecord()))).toBe(
       "self-asserted",

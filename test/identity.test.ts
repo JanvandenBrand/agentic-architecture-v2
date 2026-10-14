@@ -27,9 +27,9 @@ async function temporaryHome(): Promise<string> {
   return home;
 }
 
-function approvalRecord(): Record<string, unknown> {
+function approvalRecord(schemaVersion: string): Record<string, unknown> {
   return {
-    schemaVersion: "1.0.0",
+    schemaVersion,
     recordType: "human-approval",
     caseName: "sample",
     artifactPrefix: "sample",
@@ -159,7 +159,7 @@ describe("architect approval identity", () => {
   });
 });
 
-describe("approval signatures", () => {
+describe.each(["1.0.0", "1.1.0"])("approval signatures with %s", (schemaVersion) => {
   async function signedFixture(): Promise<{
     home: string;
     signed: Record<string, unknown>;
@@ -172,7 +172,7 @@ describe("approval signatures", () => {
       home,
     });
     const signed = signApproval(
-      approvalRecord(),
+      approvalRecord(schemaVersion),
       await readEncryptedPrivateKey(home),
       passphrase,
       created.publicKeyPem,
@@ -199,7 +199,7 @@ describe("approval signatures", () => {
     const encrypted = await readEncryptedPrivateKey(home);
 
     expect(() =>
-      signApproval(approvalRecord(), encrypted, "wrong passphrase", created.publicKeyPem),
+      signApproval(approvalRecord(schemaVersion), encrypted, "wrong passphrase", created.publicKeyPem),
     ).toThrow(IdentityError);
   });
 
@@ -209,6 +209,14 @@ describe("approval signatures", () => {
     const tampered = { ...signed, decision: "REJECTED" };
 
     expect(verifyApprovalSignature(tampered).verified).toBe(false);
+  });
+
+  it("rejects a signature copied onto another contract version", async () => {
+    const { signed } = await signedFixture();
+    expect(verifyApprovalSignature({
+      ...signed,
+      schemaVersion: schemaVersion === "1.0.0" ? "1.1.0" : "1.0.0",
+    }).verified).toBe(false);
   });
 
   it("rejects an artifact hash swapped after signing", async () => {
@@ -296,7 +304,7 @@ describe("approval signatures", () => {
       home,
     });
     const signed = signApproval(
-      approvalRecord(),
+      approvalRecord(schemaVersion),
       await readEncryptedPrivateKey(home),
       passphrase,
       created.publicKeyPem,

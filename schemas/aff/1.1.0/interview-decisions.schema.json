@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/aramsmith/agentic-architecture-v2/schemas/aff/1.1.0/interview-decisions.schema.json",
+  "title": "AFF interview decisions 1.1.0",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "recordType",
+    "caseName",
+    "artifactPrefix",
+    "goal",
+    "confidence",
+    "decisions",
+    "assumptions",
+    "nonScope",
+    "openItems",
+    "humanConfirmation"
+  ],
+  "properties": {
+    "schemaVersion": { "$ref": "shared.schema.json#/$defs/schemaVersion" },
+    "recordType": { "const": "interview-decisions" },
+    "caseName": { "$ref": "shared.schema.json#/$defs/caseName" },
+    "artifactPrefix": { "$ref": "shared.schema.json#/$defs/artifactPrefix" },
+    "goal": { "type": "string", "minLength": 1 },
+    "confidence": {
+      "type": "object",
+      "required": ["business", "data", "application", "technology", "security", "overall"],
+      "properties": {
+        "business": { "$ref": "#/$defs/confidenceValue" },
+        "data": { "$ref": "#/$defs/confidenceValue" },
+        "application": { "$ref": "#/$defs/confidenceValue" },
+        "technology": { "$ref": "#/$defs/confidenceValue" },
+        "security": { "$ref": "#/$defs/confidenceValue" },
+        "overall": { "type": "integer", "minimum": 0, "maximum": 100 }
+      },
+      "additionalProperties": false
+    },
+    "decisions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/decision" }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "statement", "owner", "validationPlan", "status"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "statement": { "type": "string", "minLength": 1 },
+          "owner": { "type": "string", "minLength": 1 },
+          "validationPlan": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["OPEN", "CONFIRMED", "REJECTED"] }
+        },
+        "additionalProperties": false
+      }
+    },
+    "nonScope": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "sourceBindings": {
+      "type": "array",
+      "items": { "$ref": "shared.schema.json#/$defs/artifactBinding" }
+    },
+    "corrections": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/decision" }
+    },
+    "openItems": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "humanConfirmation": {
+      "type": "object",
+      "required": ["confirmedBy", "confirmedAt"],
+      "properties": {
+        "confirmedBy": { "type": "string", "minLength": 1 },
+        "confirmedAt": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    },
+    "extensions": { "$ref": "shared.schema.json#/$defs/extensions" }
+  },
+  "$defs": {
+    "confidenceValue": {
+      "type": "object",
+      "required": ["score", "rationale"],
+      "properties": {
+        "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "rationale": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "decision": {
+      "type": "object",
+      "required": [
+        "id",
+        "recordedAt",
+        "domains",
+        "source",
+        "answer",
+        "rationale",
+        "owner"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "recordedAt": { "type": "string", "format": "date-time" },
+        "domains": {
+          "type": "array",
+          "items": {
+            "enum": ["Business", "Data", "Application", "Technology", "Security"]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "source": { "type": "string", "minLength": 1 },
+        "question": { "type": "string" },
+        "answer": { "type": "string", "minLength": 1 },
+        "rationale": { "type": "string", "minLength": 1 },
+        "rejectedAlternatives": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "owner": { "type": "string", "minLength": 1 },
+        "followUp": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

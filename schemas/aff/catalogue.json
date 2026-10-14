@@ -1,80 +1,94 @@
 {
-  "contractVersion": "1.0.0",
+  "contractVersion": "1.1.0",
+  "supportedContractVersions": ["1.0.0", "1.1.0"],
   "jsonSchemaDraft": "https://json-schema.org/draft/2020-12/schema",
   "schemas": [
     {
+      "schemaVersion": "1.0.0",
       "recordType": "lifecycle-manifest",
       "file": "1.0.0/lifecycle-manifest.schema.json",
       "format": "json",
       "patterns": [".github/agents/AFF-LIFECYCLE.json"]
     },
     {
+      "schemaVersion": "1.0.0",
       "recordType": "input-inventory",
       "file": "1.0.0/input-inventory.schema.json",
       "format": "json",
       "patterns": ["0-coordination/*-input-inventory.json"]
     },
     {
+      "schemaVersion": "1.0.0",
       "recordType": "model-plan",
       "file": "1.0.0/model-plan.schema.json",
       "format": "json",
       "patterns": ["0-coordination/*-model-plan.json"]
     },
     {
+      "schemaVersion": "1.0.0",
       "recordType": "interview-decisions",
       "file": "1.0.0/interview-decisions.schema.json",
       "format": "json",
       "patterns": ["1-requirements/*-interview-decisions.json"]
     },
     {
+      "schemaVersion": "1.0.0",
       "recordType": "requirements-catalogue",
       "file": "1.0.0/requirements-catalogue.schema.json",
       "format": "json",
       "patterns": ["1-requirements/*-requirements-catalogue.json"]
     },
     {
+      "schemaVersion": "1.0.0",
       "recordType": "architecture-catalogue",
       "file": "1.0.0/architecture-catalogue.schema.json",
       "format": "json",
       "patterns": ["2-togaf-architecture/*-architecture-catalogue.json"]
     },
     {
+      "schemaVersion": "1.0.0",
       "recordType": "azure-design-catalogue",
       "file": "1.0.0/azure-design-catalogue.schema.json",
       "format": "json",
       "patterns": ["3-azure-design/*-design-catalogue.json"]
     },
     {
+      "schemaVersion": "1.0.0",
       "recordType": "implementation-catalogue",
       "file": "1.0.0/implementation-catalogue.schema.json",
       "format": "json",
       "patterns": ["4-implementation-plan/*-implementation-catalogue.json"]
     },
     {
+      "schemaVersion": "1.0.0",
       "recordType": "release-manifest",
       "file": "1.0.0/release-manifest.schema.json",
       "format": "json",
       "patterns": ["5-coding/*-release-manifest.json"]
     },
     {
+      "schemaVersion": "1.0.0",
       "recordType": "claim-catalogue",
       "file": "1.0.0/claim-catalogue.schema.json",
       "format": "json",
       "patterns": ["6-presentation/*-claim-catalogue.json"]
     },
     {
+      "schemaVersion": "1.0.0",
       "recordType": "deployment-attempts",
       "file": "1.0.0/deployment-attempts.schema.json",
       "format": "json",
       "patterns": ["7-deployment/*-deployment-attempts.json"]
     },
     {
+      "schemaVersion": "1.0.0",
       "recordType": "test-catalogue",
       "file": "1.0.0/test-catalogue.schema.json",
       "format": "json",
       "patterns": ["8-testing/*-test-catalogue.json"]
     },
     {
+      "schemaVersion": "1.0.0",
       "recordType": "review-record",
       "file": "1.0.0/review-record.schema.json",
       "format": "json",
@@ -84,20 +98,138 @@
       ]
     },
     {
+      "schemaVersion": "1.0.0",
       "recordType": "human-approval",
       "file": "1.0.0/human-approval.schema.json",
       "format": "json",
       "patterns": ["approvals/**/*.json"]
     },
     {
+      "schemaVersion": "1.0.0",
       "recordType": "regulatory-coverage",
       "file": "1.0.0/regulatory-coverage.schema.json",
       "format": "json",
       "patterns": ["reviews/aff-b/*-compliance-coverage.json"]
     },
     {
+      "schemaVersion": "1.0.0",
       "recordType": "run-journal-event",
       "file": "1.0.0/run-journal-event.schema.json",
+      "format": "jsonl",
+      "patterns": ["*-run-journal.jsonl"]
+    },
+    {
+      "schemaVersion": "1.1.0",
+      "recordType": "lifecycle-manifest",
+      "file": "1.1.0/lifecycle-manifest.schema.json",
+      "format": "json",
+      "patterns": [".github/agents/AFF-LIFECYCLE.json"]
+    },
+    {
+      "schemaVersion": "1.1.0",
+      "recordType": "input-inventory",
+      "file": "1.1.0/input-inventory.schema.json",
+      "format": "json",
+      "patterns": ["0-coordination/*-input-inventory.json"]
+    },
+    {
+      "schemaVersion": "1.1.0",
+      "recordType": "model-plan",
+      "file": "1.1.0/model-plan.schema.json",
+      "format": "json",
+      "patterns": ["0-coordination/*-model-plan.json"]
+    },
+    {
+      "schemaVersion": "1.1.0",
+      "recordType": "interview-decisions",
+      "file": "1.1.0/interview-decisions.schema.json",
+      "format": "json",
+      "patterns": ["1-requirements/*-interview-decisions.json"]
+    },
+    {
+      "schemaVersion": "1.1.0",
+      "recordType": "requirements-catalogue",
+      "file": "1.1.0/requirements-catalogue.schema.json",
+      "format": "json",
+      "patterns": ["1-requirements/*-requirements-catalogue.json"]
+    },
+    {
+      "schemaVersion": "1.1.0",
+      "recordType": "architecture-catalogue",
+      "file": "1.1.0/architecture-catalogue.schema.json",
+      "format": "json",
+      "patterns": ["2-togaf-architecture/*-architecture-catalogue.json"]
+    },
+    {
+      "schemaVersion": "1.1.0",
+      "recordType": "azure-design-catalogue",
+      "file": "1.1.0/azure-design-catalogue.schema.json",
+      "format": "json",
+      "patterns": ["3-azure-design/*-design-catalogue.json"]
+    },
+    {
+      "schemaVersion": "1.1.0",
+      "recordType": "implementation-catalogue",
+      "file": "1.1.0/implementation-catalogue.schema.json",
+      "format": "json",
+      "patterns": ["4-implementation-plan/*-implementation-catalogue.json"]
+    },
+    {
+      "schemaVersion": "1.1.0",
+      "recordType": "release-manifest",
+      "file": "1.1.0/release-manifest.schema.json",
+      "format": "json",
+      "patterns": ["5-coding/*-release-manifest.json"]
+    },
+    {
+      "schemaVersion": "1.1.0",
+      "recordType": "claim-catalogue",
+      "file": "1.1.0/claim-catalogue.schema.json",
+      "format": "json",
+      "patterns": ["6-presentation/*-claim-catalogue.json"]
+    },
+    {
+      "schemaVersion": "1.1.0",
+      "recordType": "deployment-attempts",
+      "file": "1.1.0/deployment-attempts.schema.json",
+      "format": "json",
+      "patterns": ["7-deployment/*-deployment-attempts.json"]
+    },
+    {
+      "schemaVersion": "1.1.0",
+      "recordType": "test-catalogue",
+      "file": "1.1.0/test-catalogue.schema.json",
+      "format": "json",
+      "patterns": ["8-testing/*-test-catalogue.json"]
+    },
+    {
+      "schemaVersion": "1.1.0",
+      "recordType": "review-record",
+      "file": "1.1.0/review-record.schema.json",
+      "format": "json",
+      "patterns": [
+        "reviews/aff-a/[0-8]/round-*/*.json",
+        "reviews/aff-b/[0-8]/round-*/*.json"
+      ]
+    },
+    {
+      "schemaVersion": "1.1.0",
+      "recordType": "human-approval",
+      "file": "1.1.0/human-approval.schema.json",
+      "format": "json",
+      "patterns": ["approvals/**/*.json"]
+    },
+    {
+      "schemaVersion": "1.1.0",
+      "recordType": "regulatory-coverage",
+      "file": "1.1.0/regulatory-coverage.schema.json",
+      "format": "json",
+      "patterns": ["reviews/aff-b/*-compliance-coverage.json"]
+    },
+    {
+      "schemaVersion": "1.1.0",
+      "recordType": "run-journal-event",
+      "file": "1.1.0/run-journal-event.schema.json",
       "format": "jsonl",
       "patterns": ["*-run-journal.jsonl"]
     }

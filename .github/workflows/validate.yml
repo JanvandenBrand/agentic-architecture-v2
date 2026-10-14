@@ -15,9 +15,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  validate:
-    name: Repository validation
-    runs-on: ubuntu-latest
+  checks:
+    name: Repository checks (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
       - name: Check out repository
@@ -32,23 +36,11 @@ jobs:
       - name: Install pinned dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Run repository governance tests
-        run: npm run test:governance
+      - name: Run every test suite
+        run: npm test
 
       - name: Check generated adoption documentation
         run: npm run docs:check
-
-      - name: Run adoption and release tests
-        run: npm run test:adoption
-
-      - name: Run contract tests
-        run: npm run test:contracts
-
-      - name: Run secure renderer tests
-        run: npm run test:renderer
-
-      - name: Run Contoso harness tests
-        run: npm run test:smoke
 
       - name: Type-check
         run: npm run typecheck
@@ -61,3 +53,21 @@ jobs:
 
       - name: Run offline Contoso smoke journey
         run: npm run smoke:contoso
+
+      - name: Run new-contract Copilot smoke journey
+        run: npm run smoke:contoso -- --host github-copilot --schema-version 1.1.0
+
+      - name: Run new-contract Claude smoke journey
+        run: npm run smoke:contoso -- --host claude-code --schema-version 1.1.0
+
+  validate:
+    name: Repository validation
+    if: always()
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require both platforms
+        env:
+          CHECKS_RESULT: ${{ needs.checks.result }}
+        run: test "$CHECKS_RESULT" = success

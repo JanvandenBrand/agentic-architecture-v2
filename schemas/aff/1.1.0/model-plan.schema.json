@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/aramsmith/agentic-architecture-v2/schemas/aff/1.1.0/model-plan.schema.json",
+  "title": "AFF model plan 1.1.0",
+  "type": "object",
+  "required": ["schemaVersion", "recordType", "caseName", "artifactPrefix", "assignments", "host"],
+  "properties": {
+    "schemaVersion": { "$ref": "shared.schema.json#/$defs/schemaVersion" },
+    "recordType": { "const": "model-plan" },
+    "host": { "$ref": "shared.schema.json#/$defs/host" },
+    "caseName": { "$ref": "shared.schema.json#/$defs/caseName" },
+    "artifactPrefix": { "$ref": "shared.schema.json#/$defs/artifactPrefix" },
+    "assignments": {
+      "type": "array",
+      "minItems": 11,
+      "items": {
+        "type": "object",
+        "required": ["agent", "model", "rationale", "available", "separationStatus"],
+        "properties": {
+          "agent": { "type": "string", "pattern": "^AFF-(?:[0-8]|A|B)-" },
+          "model": { "type": "string", "pattern": "^(?:gpt-|claude-)" },
+          "rationale": { "type": "string", "minLength": 1 },
+          "available": { "type": "boolean" },
+          "separationStatus": {
+            "enum": ["SATISFIED", "NOT-APPLICABLE", "BLOCKED"]
+          },
+          "approvalReference": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "extensions": { "$ref": "shared.schema.json#/$defs/extensions" }
+  },
+  "additionalProperties": false
+}

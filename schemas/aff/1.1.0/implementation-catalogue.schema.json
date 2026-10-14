@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/aramsmith/agentic-architecture-v2/schemas/aff/1.1.0/implementation-catalogue.schema.json",
+  "title": "AFF implementation catalogue 1.1.0",
+  "type": "object",
+  "required": ["schemaVersion", "recordType", "caseName", "artifactPrefix", "revision", "designRevision", "units"],
+  "properties": {
+    "schemaVersion": { "$ref": "shared.schema.json#/$defs/schemaVersion" },
+    "recordType": { "const": "implementation-catalogue" },
+    "caseName": { "$ref": "shared.schema.json#/$defs/caseName" },
+    "artifactPrefix": { "$ref": "shared.schema.json#/$defs/artifactPrefix" },
+    "revision": { "type": "string", "minLength": 1 },
+    "designRevision": { "type": "string", "minLength": 1 },
+    "units": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "dependsOn", "inputs", "outputs", "owner", "stage", "validation", "rollback", "evidence", "designElements", "requirements"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 },
+          "dependsOn": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+          "inputs": { "type": "array", "items": { "type": "string" } },
+          "outputs": { "type": "array", "items": { "type": "string" } },
+          "owner": { "type": "string", "minLength": 1 },
+          "stage": { "type": "string", "minLength": 1 },
+          "validation": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+          "rollback": { "type": "string", "minLength": 1 },
+          "evidence": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+          "designElements": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+          "requirements": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "extensions": { "$ref": "shared.schema.json#/$defs/extensions" }
+  },
+  "additionalProperties": false
+}

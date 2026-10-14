@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/aramsmith/agentic-architecture-v2/schemas/aff/1.1.0/lifecycle-manifest.schema.json",
+  "title": "AFF lifecycle manifest 1.1.0",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "recordType",
+    "version",
+    "contract",
+    "standardRoute",
+    "reviewOrder",
+    "phases",
+    "reviewers",
+    "artifactRules",
+    "executionRules"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "$ref": "shared.schema.json#/$defs/schemaVersion"
+    },
+    "recordType": {
+      "const": "lifecycle-manifest"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "contract": {
+      "const": ".github/agents/AFF-OPERATING-CONTRACT.md"
+    },
+    "standardRoute": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "prefixItems": [
+        { "const": "0" },
+        { "const": "1" },
+        { "const": "2" },
+        { "const": "3" },
+        { "const": "4" },
+        { "const": "5" },
+        { "const": "6" }
+      ],
+      "items": false
+    },
+    "reviewOrder": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "prefixItems": [
+        { "const": "phase-agent" },
+        { "const": "AFF-A" },
+        { "const": "phase-agent-remediation" },
+        { "const": "AFF-B" },
+        { "const": "phase-agent-remediation" },
+        { "const": "AFF-A-and-AFF-B-same-hash-convergence" },
+        { "const": "human-approval" }
+      ],
+      "items": false
+    },
+    "phases": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "displayName",
+          "owner",
+          "model",
+          "folder",
+          "next",
+          "humanInvocableOnly"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "shared.schema.json#/$defs/phaseId"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "owner": {
+            "type": "string",
+            "pattern": "^AFF-[0-8]-.+$"
+          },
+          "model": {
+            "type": "string",
+            "pattern": "^(?:gpt-|claude-)"
+          },
+          "folder": {
+            "type": "string",
+            "pattern": "^[0-8]-[a-z0-9-]+$"
+          },
+          "next": {
+            "oneOf": [
+              {
+                "$ref": "shared.schema.json#/$defs/phaseId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "humanInvocableOnly": {
+            "type": "boolean"
+          },
+          "requires": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "reviewers": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "displayName",
+          "owner",
+          "model",
+          "mustDifferFromPhaseOwner"
+        ],
+        "properties": {
+          "id": {
+            "enum": ["AFF-A", "AFF-B"]
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "owner": {
+            "type": "string",
+            "pattern": "^AFF-[AB]-.+$"
+          },
+          "model": {
+            "type": "string",
+            "pattern": "^(?:gpt-|claude-)"
+          },
+          "mustDifferFromPhaseOwner": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "artifactRules": {
+      "type": "object",
+      "required": [
+        "phaseMarkdown",
+        "phaseHtml",
+        "solutionOverview",
+        "phaseHtmlSelfContained",
+        "humanReadableOutputsCompact"
+      ],
+      "properties": {
+        "phaseMarkdown": { "type": "string" },
+        "phaseHtml": { "type": "string" },
+        "solutionOverview": { "type": "string" },
+        "phaseHtmlSelfContained": { "type": "boolean" },
+        "humanReadableOutputsCompact": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "executionRules": {
+      "type": "object",
+      "required": [
+        "iacDefault",
+        "githubOidcAllowed",
+        "storedCredentialsAllowed",
+        "phase5DeploymentAllowed",
+        "databasePublicAccessAllowed",
+        "environmentCodeForksAllowed"
+      ],
+      "properties": {
+        "iacDefault": { "const": "Bicep" },
+        "githubOidcAllowed": { "const": false },
+        "storedCredentialsAllowed": { "const": false },
+        "phase5DeploymentAllowed": { "const": false },
+        "databasePublicAccessAllowed": { "const": false },
+        "environmentCodeForksAllowed": { "const": false }
+      },
+      "additionalProperties": false
+    },
+    "extensions": {
+      "$ref": "shared.schema.json#/$defs/extensions"
+    }
+  },
+  "additionalProperties": false
+}

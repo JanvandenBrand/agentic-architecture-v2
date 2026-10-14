@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/aramsmith/agentic-architecture-v2/schemas/aff/1.1.0/input-inventory.schema.json",
+  "title": "AFF input inventory 1.1.0",
+  "type": "object",
+  "required": ["schemaVersion", "recordType", "caseName", "artifactPrefix", "sources"],
+  "properties": {
+    "schemaVersion": { "$ref": "shared.schema.json#/$defs/schemaVersion" },
+    "recordType": { "const": "input-inventory" },
+    "caseName": { "$ref": "shared.schema.json#/$defs/caseName" },
+    "artifactPrefix": { "$ref": "shared.schema.json#/$defs/artifactPrefix" },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["sourcePath", "governedArtifact", "readable"],
+        "properties": {
+          "sourcePath": { "$ref": "shared.schema.json#/$defs/casePath" },
+          "governedArtifact": { "$ref": "shared.schema.json#/$defs/artifactBinding" },
+          "readable": { "type": "boolean" },
+          "normalisationNotes": { "type": "string" },
+          "sensitivity": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "extensions": { "$ref": "shared.schema.json#/$defs/extensions" }
+  },
+  "additionalProperties": false
+}

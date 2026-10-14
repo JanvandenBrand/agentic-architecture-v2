@@ -1,6 +1,8 @@
 import {
   mkdtemp,
+  mkdir,
   readFile,
+  readdir,
   rm,
   writeFile,
 } from "node:fs/promises";
@@ -53,6 +55,42 @@ async function mutateJson(
 }
 
 describe("offline Contoso smoke journey", () => {
+  it.each([
+    ["--host", "claude-code"],
+    ["--schema-version", "1.1.0"],
+    ["--host", "unknown", "--schema-version", "1.1.0"],
+    ["--host", "github-copilot", "--schema-version", "2.0.0"],
+    ["--host", "claude-code", "--schema-version", "1.0.0"],
+  ])("rejects invalid CLI policy %j with usage status", async (...flags) => {
+    expect(await runSmokeCli(["node", "smoke:contoso", ...flags])).toBe(64);
+  });
+
+  it("rejects a legacy Claude workspace before writing evidence", async () => {
+    const workspace = await mkdtemp(path.join(tmpdir(), "aff-invalid-host-"));
+    temporaryDirectories.push(workspace);
+    await expect(buildContosoSmokeWorkspace(repositoryRoot, workspace, {
+      host: "claude-code", schemaVersion: "1.0.0",
+    })).rejects.toThrow(/1\.0\.0.*github-copilot/u);
+    expect(await readdir(workspace)).toEqual([]);
+  });
+
+  it("copies only the allowlisted synthetic case inputs", async () => {
+    const source = await createSmokeWorkspace();
+    const unrelated = path.join(source, "cases", "unrelated-local-case");
+    await mkdir(unrelated);
+    await writeFile(path.join(unrelated, "do-not-copy.txt"), "Synthetic isolation sentinel");
+    await writeFile(path.join(source, "cases", "contoso-permit-services", "input", "local-only.txt"), "Synthetic isolation sentinel");
+    const workspace = await mkdtemp(path.join(tmpdir(), "aff-smoke-isolation-"));
+    temporaryDirectories.push(workspace);
+    await buildContosoSmokeWorkspace(source, workspace);
+    expect(await readdir(path.join(workspace, "cases"))).toEqual(
+      expect.arrayContaining(["_template", "contoso-permit-services"]),
+    );
+    expect(await readdir(path.join(workspace, "cases"))).not.toContain("unrelated-local-case");
+    expect(await readdir(path.join(workspace, "cases", "contoso-permit-services", "input")))
+      .not.toContain("local-only.txt");
+  });
+
   it("uses platform-independent text bytes in governed inventories", async () => {
     const brief = await readFile(
       path.join(

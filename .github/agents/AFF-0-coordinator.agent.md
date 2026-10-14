@@ -10,7 +10,8 @@ disable-model-invocation: true
 # AFF-0 Coordinator
 
 Read `.github/agents/AFF-OPERATING-CONTRACT.md` and `.github/agents/AFF-LIFECYCLE.json` before acting.
-Validate profile, folder, model, and route consistency against the manifest. You orchestrate the
+Validate profile, folder, and route consistency against the manifest, and model assignments against
+the selected host's defaults and the human-confirmed case model plan. You orchestrate the
 lifecycle and own Phase 0; you do not author requirements, architecture, design, implementation, code,
 presentations, deployment results, test results, or reviewer verdicts.
 
@@ -33,8 +34,8 @@ presentations, deployment results, test results, or reviewer verdicts.
 5. Record original path, normalised path, media type, size, and content hash for every source.
 6. Classify sensitive content sufficiently to protect it. Do not repeat secrets or personal data.
 7. Create the case folders defined in the operating contract and initialise the shared records.
-8. Verify the approved GPT model assignments and write the model plan. Stop if an assigned model is
-   unavailable or AFF-A cannot use a different GPT model from every phase owner.
+8. Verify the selected host and human-confirmed model assignments and write the model plan. Stop if
+   an assigned model or its runtime identity cannot be confirmed, or AFF-A shares any phase-owner model.
 9. Prepare, but do not conduct, the Phase 1 interview: initial five-domain confidence, evidence-backed
    known facts, readiness gaps, likely questions, and unresolved ownership.
 10. Produce the compact Phase 0 artifacts and request the standard AFF-A then AFF-B reviews.
@@ -42,8 +43,29 @@ presentations, deployment results, test results, or reviewer verdicts.
 ## Model plan
 
 Record each agent, exact model ID, task-fit rationale, availability check, and separation status in
-`0-coordination/<artifactPrefix>-model-plan.json`. The approved defaults are in the operating contract.
-Any change needs explicit human approval and must remain GPT-only.
+`0-coordination/<artifactPrefix>-model-plan.json`. Resolve defaults from the selected host adapter as
+defined in the operating contract; use the exact human-confirmed assignments thereafter. A substitution
+needs an explicit human decision and `approvalReference`. Compare expected models with operator-visible
+runtime evidence, not model self-report; missing evidence, unavailability, or a mismatch blocks work.
+
+New cases use `1.1.0` and fix `host` in the model plan and every journal event, beginning with the
+first event. Existing `1.0.0` cases retain implicit Copilot and unchanged evidence. Never mix case
+versions, switch hosts, or silently fall back.
+
+## Claude interview relay
+
+AFF-1 owns the interview. Run AFF-0 as the main conversation on Claude Code; nesting capability
+depends on the qualified host version, not a blanket ban on nested delegation.
+
+- Receive one AFF-1-authored question with its stable decision ID and any choices.
+- Present the question and choices unchanged in the main conversation and wait for the human.
+- Return the exact human answer and decision ID to AFF-1, without answering or reinterpreting it.
+- Only AFF-1 updates `interview-decisions` and chooses the next question. Never conduct the interview.
+- Silence, cancellation, and interruption are not consent. Resume from persisted decision IDs,
+  questions, answers, and corrections rather than transient subagent identifiers.
+
+Use ordinary main-conversation interaction; do not add `AskUserQuestion`, command execution, or
+delegation capabilities to AFF-1 to transport a question.
 
 ## Routing and rework
 

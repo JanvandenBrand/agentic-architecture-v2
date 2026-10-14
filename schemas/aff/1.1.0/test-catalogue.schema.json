@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/aramsmith/agentic-architecture-v2/schemas/aff/1.1.0/test-catalogue.schema.json",
+  "title": "AFF test catalogue 1.1.0",
+  "type": "object",
+  "required": ["schemaVersion", "recordType", "caseName", "artifactPrefix", "attemptId", "deployment", "testPlan", "scenarios"],
+  "properties": {
+    "schemaVersion": { "$ref": "shared.schema.json#/$defs/schemaVersion" },
+    "recordType": { "const": "test-catalogue" },
+    "caseName": { "$ref": "shared.schema.json#/$defs/caseName" },
+    "artifactPrefix": { "$ref": "shared.schema.json#/$defs/artifactPrefix" },
+    "attemptId": { "type": "string", "minLength": 1 },
+    "deployment": { "$ref": "shared.schema.json#/$defs/artifactBinding" },
+    "testPlan": { "$ref": "shared.schema.json#/$defs/artifactBinding" },
+    "scenarios": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "preconditions", "action", "expectedResult", "observedResult", "status", "timestamp", "evidence", "cleanup", "requirements", "designElements", "deploymentHash"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "preconditions": { "type": "string", "minLength": 1 },
+          "action": { "type": "string", "minLength": 1 },
+          "expectedResult": { "type": "string", "minLength": 1 },
+          "observedResult": { "type": "string" },
+          "status": { "enum": ["PASS", "FAIL", "BLOCKED", "NOT-RUN"] },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "telemetryCorrelation": { "type": "string" },
+          "evidence": { "type": "array", "items": { "$ref": "shared.schema.json#/$defs/artifactBinding" } },
+          "cleanup": { "type": "string", "minLength": 1 },
+          "requirements": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+          "designElements": { "type": "array", "items": { "type": "string" } },
+          "deploymentHash": { "$ref": "shared.schema.json#/$defs/sha256" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "extensions": { "$ref": "shared.schema.json#/$defs/extensions" }
+  },
+  "additionalProperties": false
+}

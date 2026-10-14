@@ -91,6 +91,20 @@ Restart Copilot CLI after changing agent profiles. Use `/skills reload` after ch
 **Safe stop point:** discovery proves packaging only. It does not prove model quality, reviewer
 convergence, approval, Azure readiness, or production fitness.
 
+### Claude Code evaluation
+
+The optional [Claude adapter](claude-code.md) uses the same authoritative AFF instructions. Start with
+the offline new-contract checks:
+
+```powershell
+npm run smoke:contoso -- --host github-copilot --schema-version 1.1.0
+npm run smoke:contoso -- --host claude-code --schema-version 1.1.0
+```
+
+These commands do not start either host. New cases declare one host in their `1.1.0` model plan and
+journal. Existing `1.0.0` cases remain unchanged on Copilot. Do not switch hosts within a case.
+Real-case Claude support remains unqualified until its separate live qualification passes.
+
 ## 3. Optional human-authorised Azure deployment and testing
 
 Local evaluation and an agent trial do not require Azure. Do not improvise deployment commands from this

@@ -16,6 +16,9 @@
 # AFF contracts, profiles, skills, and automation
 /.github/agents/ @aramsmith
 /.github/skills/ @aramsmith
+/.claude/ @aramsmith
+/CLAUDE.md @aramsmith
+/.mcp.json @aramsmith
 /.github/workflows/ @aramsmith
 /schemas/ @aramsmith
 /package.json @aramsmith

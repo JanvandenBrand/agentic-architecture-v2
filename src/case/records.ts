@@ -9,6 +9,7 @@ import { toRepositoryPath } from "../common/path.js";
 import { hashArtifactBytes } from "./hash.js";
 import {
   createSchemaRegistry,
+  getSchemaEntry,
   validateRecordSchema,
   type SchemaRegistry,
 } from "../schema/validator.js";
@@ -38,8 +39,10 @@ function syntaxError(file: string, message: string): ValidationError {
 function expectedRecordType(
   registry: SchemaRegistry,
   file: string,
+  schemaVersion: unknown,
 ): string | undefined {
   return registry.catalogue.schemas.find((entry) =>
+    entry.schemaVersion === schemaVersion &&
     entry.patterns.some((pattern) => minimatch(file, pattern)),
   )?.recordType;
 }
@@ -47,9 +50,12 @@ function expectedRecordType(
 function locationErrors(
   registry: SchemaRegistry,
   file: string,
+  schemaVersion: unknown,
   recordType: string,
 ): ValidationError[] {
-  const entry = registry.entries.get(recordType);
+  const entry = typeof schemaVersion === "string"
+    ? getSchemaEntry(registry, schemaVersion, recordType)
+    : undefined;
   if (!entry || entry.patterns.some((pattern) => minimatch(file, pattern))) {
     return [];
   }
@@ -68,7 +74,9 @@ function validateParsedRecord(
   file: string,
   value: unknown,
 ): { record?: LoadedRecord["value"]; errors: ValidationError[] } {
-  const expected = expectedRecordType(registry, file);
+  const expected = expectedRecordType(
+    registry, file, isRecord(value) ? value.schemaVersion : undefined,
+  );
   const schemaErrors = validateRecordSchema(registry, file, value, expected);
   if (!isRecord(value)) {
     return { errors: schemaErrors };
@@ -78,7 +86,7 @@ function validateParsedRecord(
     typeof value.recordType === "string" ? value.recordType : undefined;
   const errors = [
     ...schemaErrors,
-    ...(recordType ? locationErrors(registry, file, recordType) : []),
+    ...(recordType ? locationErrors(registry, file, value.schemaVersion, recordType) : []),
   ];
   return schemaErrors.length === 0
     ? { record: value, errors }
@@ -158,7 +166,9 @@ async function loadJsonLinesFile(
     if (file.startsWith("input/")) {
       continue;
     }
-    const expected = expectedRecordType(registry, file);
+    const expected = expectedRecordType(
+      registry, file, isRecord(value) ? value.schemaVersion : undefined,
+    );
     const schemaErrors = validateRecordSchema(registry, lineFile, value, expected);
     const recordType =
       isRecord(value) && typeof value.recordType === "string"
@@ -166,7 +176,9 @@ async function loadJsonLinesFile(
         : undefined;
     errors.push(
       ...schemaErrors,
-      ...(recordType ? locationErrors(registry, file, recordType) : []),
+      ...(recordType && isRecord(value)
+        ? locationErrors(registry, file, value.schemaVersion, recordType)
+        : []),
     );
     if (schemaErrors.length === 0 && isRecord(value)) {
       records.push({ file: lineFile, absolutePath, snapshotSha256, value });

@@ -11,6 +11,7 @@ import {
   renderSiteRoster,
 } from "../src/docs/generate.js";
 import { readLifecycle } from "../src/framework/lifecycle.js";
+import { readHostModelDefaults } from "../src/framework/hosts.js";
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -27,6 +28,8 @@ async function read(relativePath: string): Promise<string> {
 describe("architect adoption and release surfaces", () => {
   it("keeps lifecycle-derived documentation deterministic and current", async () => {
     const lifecycle = await readLifecycle(repositoryRoot);
+    const claude = await readHostModelDefaults(repositoryRoot, "claude-code", lifecycle);
+    expect(claude.errors).toEqual([]);
     const [readme, site, result] = await Promise.all([
       read("README.md"),
       read("agentic-architecture-v2.html"),
@@ -34,12 +37,30 @@ describe("architect adoption and release surfaces", () => {
     ]);
 
     expect(result.changedFiles).toEqual([]);
-    expect(readme).toContain(renderReadmeRoster(lifecycle));
-    expect(site).toContain(renderSiteRoster(lifecycle));
+    expect(readme).toContain(renderReadmeRoster(lifecycle, claude.models));
+    expect(site).toContain(renderSiteRoster(lifecycle, claude.models));
     expect(readme.match(/BEGIN GENERATED: AFF-LIFECYCLE-ROSTER/gu)).toHaveLength(
       1,
     );
     expect(site.match(/BEGIN GENERATED: AFF-LIFECYCLE-ROSTER/gu)).toHaveLength(1);
+  });
+
+  it("derives both host rosters from their supplied defaults", async () => {
+    const lifecycle = await readLifecycle(repositoryRoot);
+    const claudeModels = new Map(
+      [...lifecycle.phases, ...lifecycle.reviewers].map(({ owner }) => [
+        owner,
+        owner === "AFF-A-rubber-duck" ? "claude-sonnet-5-5" : "claude-opus-5-5",
+      ]),
+    );
+    const readme = renderReadmeRoster(lifecycle, claudeModels);
+    const site = renderSiteRoster(lifecycle, claudeModels);
+    expect(readme).toContain("Copilot default");
+    expect(readme).toContain("Claude default");
+    expect(readme).toContain("`gpt-5.4` | `claude-sonnet-5-5`");
+    expect(site).toContain("Copilot: gpt-5.4");
+    expect(site).toContain("Claude: claude-sonnet-5-5");
+    expect(site).toContain("live Claude qualification");
   });
 
   it("documents one clear offline path and separates optional live actions", async () => {
@@ -65,13 +86,41 @@ describe("architect adoption and release surfaces", () => {
     );
   });
 
+  it("provides a safe Claude tester manual directly in the README", async () => {
+    const readme = await read("README.md");
+    expect(readme).toContain("## Claude Code manual for testers");
+    for (const command of [
+      "claude --version",
+      "claude --agent AFF-0-coordinator",
+      "npm run smoke:contoso -- --host claude-code --schema-version 1.1.0",
+      "npm run approve -- --case cases\\claude-evaluation --phase 0",
+      "npm run validate -- --case cases\\claude-evaluation",
+      "Invoke-Item .\\cases\\claude-evaluation\\solution-overview.html",
+    ]) {
+      expect(readme).toContain(command);
+    }
+    expect(readme).toContain("No customer data or Azure deployment is needed.");
+    expect(readme).toContain("starts live model calls");
+    expect(readme).toContain("no agent session running");
+    expect(readme).toContain("do not overwrite existing evidence");
+    expect(readme).toContain("matching HUMAN-DECISION journal event");
+    expect(readme).toContain("Cancellation or an interrupted session never becomes consent.");
+  });
+
   it("keeps compatibility versions aligned with authoritative metadata", async () => {
-    const [compatibility, packageJson, lifecycle, catalogue] = await Promise.all([
+    const [compatibility, packageJson, packageLock, lifecycle, catalogue] = await Promise.all([
       read("docs/compatibility.md"),
       read("package.json").then((value) => JSON.parse(value) as { version: string }),
+      read("package-lock.json").then((value) => JSON.parse(value) as {
+        version: string;
+        packages: { "": { version: string } };
+      }),
       readLifecycle(repositoryRoot),
       read("schemas/aff/catalogue.json").then(
-        (value) => JSON.parse(value) as { contractVersion: string },
+        (value) => JSON.parse(value) as {
+          contractVersion: string;
+          supportedContractVersions: string[];
+        },
       ),
     ]);
 
@@ -82,12 +131,40 @@ describe("architect adoption and release surfaces", () => {
     expect(compatibility).toContain(
       `| Validator/tool package | \`${packageJson.version}\`, private package`,
     );
+    expect(packageLock.version).toBe(packageJson.version);
+    expect(packageLock.packages[""].version).toBe(packageJson.version);
+    expect(catalogue.supportedContractVersions).toEqual(["1.0.0", "1.1.0"]);
+    for (const version of catalogue.supportedContractVersions) {
+      expect(compatibility).toContain(`\`${version}\``);
+    }
     expect(compatibility).toContain("| Windows |");
     expect(compatibility).toContain("| Linux |");
     expect(compatibility).toContain("| macOS |");
     expect(compatibility).toContain("| GitHub Copilot CLI |");
+    expect(compatibility).toContain("| Claude Code |");
     expect(compatibility).toContain("| Azure |");
     expect(compatibility).toContain("A silent fallback is not supported.");
+  });
+
+  it("separates offline host compatibility from live qualification", async () => {
+    const [compatibility, migration, quickStart, renderer] = await Promise.all([
+      read("docs/compatibility.md"),
+      read("docs/migrations/1.0.0-to-1.1.0.md"),
+      read("docs/quick-start.md"),
+      read("docs/aff-renderer.md"),
+    ]);
+
+    expect(compatibility).toContain("live behaviour unqualified");
+    expect(compatibility).toContain("not a verified support range");
+    expect(migration).toContain("No case conversion is required or supported.");
+    expect(migration).toContain("Do not edit `schemaVersion`");
+    expect(migration).toContain("cannot continue a `1.1.0` case");
+    expect(renderer).toContain("does not upgrade source records");
+    for (const host of ["github-copilot", "claude-code"]) {
+      expect(quickStart).toContain(
+        `npm run smoke:contoso -- --host ${host} --schema-version 1.1.0`,
+      );
+    }
   });
 
   it("publishes representative evidence without presenting synthetic approval as real", async () => {
@@ -143,6 +220,7 @@ describe("architect adoption and release surfaces", () => {
       "compatibility.md",
       "troubleshooting.md",
       "release-process.md",
+      "claude-code.md",
     ]) {
       expect(pagesWorkflow).toContain(`cp docs/${document} _site/docs/${document}`);
     }

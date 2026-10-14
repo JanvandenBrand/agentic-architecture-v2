@@ -22,6 +22,13 @@ npm run render -- overview --case cases\contoso-permit-services
 
 The equivalent built commands are `aff-render phase ...` and `aff-render overview ...`.
 
+## Contract compatibility
+
+The renderer accepts schema contracts `1.0.0` and `1.1.0` using each record's exact declared version.
+It does not upgrade source records, change signatures, invoke a model, or require either host CLI.
+New cases use one declared host and one schema version; mixed versions or host changes fail case
+validation. Existing Copilot evidence stays unchanged. See [AFF contracts](aff-contracts.md).
+
 ## Trust model
 
 All case content is untrusted. The renderer:

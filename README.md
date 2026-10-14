@@ -9,6 +9,11 @@ phase. Approvals are signed with a key only the architect can unlock, and the va
 order from the records. Deployment and runtime testing are optional and always require separate human
 invocation.
 
+One shared framework now has GitHub Copilot and Claude Code packaging. Existing Copilot cases keep
+contract `1.0.0`; new cases use `1.1.0` and stay on their selected host. Claude's offline adapter and
+record checks are separate from live qualification: **real-case Claude support remains unqualified**
+until the [host qualification procedure](docs/claude-code.md) passes.
+
 ## See it first
 
 **[▶ Open the interactive overview](https://aramsmith.github.io/agentic-architecture-v2/agentic-architecture-v2.html)**
@@ -28,6 +33,8 @@ See [CONTRIBUTORS.md](CONTRIBUTORS.md) for the contributor policy and full list.
 - **[Ten-minute architect quick start](docs/quick-start.md)** — clone to verified synthetic evidence.
 - [Representative Contoso Phase 0 evidence](docs/examples/contoso-phase-0-evidence.md)
 - [Compatibility and support matrix](docs/compatibility.md)
+- [Claude Code adapter and qualification](docs/claude-code.md)
+- [Claude Code manual for testers](#claude-code-manual-for-testers)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Release process and version policy](docs/release-process.md)
 - [Contracts](docs/aff-contracts.md) and [renderer trust boundary](docs/aff-renderer.md)
@@ -81,6 +88,9 @@ this stage and approvals still work, but they are recorded as `self-asserted`.
 
 Needed only for real cases. Requires Copilot access and the models in the roster below.
 
+For Claude Code, use the [adapter guide](docs/claude-code.md). Do not treat successful discovery or a
+synthetic smoke run as permission to use an unqualified host for a customer case.
+
 Open Copilot CLI from the repository root, then:
 
 1. `/agent` — confirm `AFF-0-coordinator` is listed.
@@ -107,6 +117,10 @@ or unnecessary personal or regulated data.** Case folders stay local and are nev
 
 Then invoke `AFF-0-coordinator`. Do not start with AFF-1: Phase 0 establishes the source inventory,
 model plan, shared records, interview preparation, and review routing.
+
+For a new case, confirm `github-copilot` or `claude-code` in Phase 0. The `1.1.0` model plan and every
+journal event record that host. Existing `1.0.0` cases remain Copilot cases without conversion. Switching
+hosts or mixing schema versions within a case is not supported.
 
 ### 5 · Approve each phase, one at a time
 
@@ -136,6 +150,131 @@ Phases 7 and 8 are never automatic; they need separate human invocation.
 
 For the fuller walkthrough with expected evidence and cleanup, see the
 [quick start](docs/quick-start.md). For failures, see [troubleshooting](docs/troubleshooting.md).
+
+## Claude Code manual for testers
+
+Use this manual to test the real Claude workflow with a **new synthetic case**. The automated checks
+already test the records and tools; this trial checks how Claude Code behaves in practice.
+**No customer data or Azure deployment is needed.** Live Claude support remains unqualified until
+the trial has been completed and reviewed.
+
+### 1. Prepare the repository and Claude Code
+
+You need Git, Node.js 22 or later, npm, and Claude Code installed and signed in. Your Claude account
+must have access to the exact models in the generated roster below. Version `2.1.263` is the current
+Claude Code qualification target, not a guarantee that every version works.
+
+Start in the cloned repository. Before this PR is merged, use its `claude-code-compatibility` branch
+rather than `main`; after merge, use `main`.
+
+```powershell
+git fetch origin
+git switch claude-code-compatibility
+npm ci --no-audit --no-fund
+claude --version
+npm run validate -- --framework-only
+npm run smoke:contoso -- --host claude-code --schema-version 1.1.0
+```
+
+The smoke run must pass and report no live model or Azure activity. It does not start Claude Code.
+If it fails, stop and save the error; do not weaken a rule to continue.
+
+### 2. Prepare human signing and a new test case
+
+With **no agent session running**, create your approval identity if you do not already have one:
+
+```powershell
+npm run identity:create
+```
+
+Keep your passphrase private. Never type it into Claude or another agent conversation.
+Do not replace an existing approval identity for this trial.
+
+Create a fresh case from the committed Contoso example. This script stops if the case folder exists;
+choose a new case name rather than overwriting a previous trial.
+
+```powershell
+$caseName = 'claude-evaluation'
+$caseRoot = Join-Path '.\cases' $caseName
+if (Test-Path -LiteralPath $caseRoot) {
+  throw 'Choose a new test case name; do not overwrite existing evidence.'
+}
+New-Item -ItemType Directory -Path "$caseRoot\input" -ErrorAction Stop
+Copy-Item -LiteralPath '.\cases\contoso-permit-services\input\architecture-brief.md' `
+  -Destination "$caseRoot\input\architecture-brief.md" -ErrorAction Stop
+```
+
+Keep the case local. Do not commit case output, account details, or private evidence. If you choose
+a different case name, use it in all commands and prompts below.
+
+### 3. Start the coordinator
+
+Confirm you are authorised to use the Claude account and its model allowance. The next command
+**starts live model calls**:
+
+```powershell
+claude --agent AFF-0-coordinator
+```
+
+Give the coordinator this prompt:
+
+```text
+Start a synthetic evaluation in cases/claude-evaluation.
+Use caseName and artifactPrefix claude-evaluation, schemaVersion 1.1.0,
+and host claude-code. Use the approved Claude model defaults.
+Read the supplied brief and the authoritative AFF instructions.
+Do not deploy, run live Azure tests, sign a decision, or ask for my passphrase.
+Complete Phase 0 and both reviews, then stop for my decision.
+```
+
+Confirm that the intended agents and skills are loaded and that the expected models match
+operator-visible host evidence. A model naming itself is not proof. Stop on an unavailable model,
+unexpected substitution, extra reviewer tool, or missing identity evidence.
+
+### 4. Review, sign, and resume
+
+Read the Phase 0 document and both reviews. Resolve blockers before approving; a test approval
+does not authorise deployment. Close the agent session, then decide in your own terminal:
+
+```powershell
+npm run approve -- --case cases\claude-evaluation --phase 0
+npm run validate -- --case cases\claude-evaluation
+```
+
+Only the human enters the signing passphrase. Start the coordinator again with
+`claude --agent AFF-0-coordinator` and give it this prompt:
+
+```text
+Resume cases/claude-evaluation from its existing records.
+Read my signed Phase 0 decision without changing it.
+Record the matching HUMAN-DECISION journal event with the same actor, time,
+artifact hashes, and review hashes, then regenerate solution-overview.html.
+Continue only if the recorded decision permits it.
+Have AFF-1 author the next interview question and relay it unchanged to me.
+```
+
+Open the generated overview:
+
+```powershell
+Invoke-Item .\cases\claude-evaluation\solution-overview.html
+```
+
+For later phases, repeat the review and human-only decision loop, changing `--phase` to the phase
+under review. Keep the same host and schema version. Do not enter phases 7 or 8 during this trial.
+
+### 5. Check the interview and report the result
+
+- AFF-1 authors one question at a time. AFF-0 relays it without answering for you.
+- Your exact answer and its decision ID are preserved. Corrections append; they do not erase history.
+- Cancellation or an interrupted session never becomes consent.
+- After a restart, the coordinator uses existing evidence rather than restarting the case or inventing
+  decisions.
+- Reviewers cannot execute commands or dispatch agents. Human signing stays outside the agent session.
+
+Record the tested commit, operating system, Claude Code version, expected and observed models,
+pass/fail results, and sanitised errors. Report what you actually observed, including anything not
+tested. Never include passphrases, tokens, account identifiers, or customer information.
+The full acceptance list is in the [Claude adapter guide](docs/claude-code.md).
 
 ## Interactive solution overview
 
@@ -248,30 +387,32 @@ records, not from agent behaviour.
 
 ## Agent roster
 
-Do not edit this table directly. Run `npm run docs:generate` after changing the lifecycle manifest.
+Do not edit this table directly. Run `npm run docs:generate` after changing host defaults.
+Copilot defaults come from the lifecycle manifest. Claude defaults come from the checked wrappers; see the
+[Claude guide](docs/claude-code.md). Case assignments, once confirmed, govern the actual work.
 
 <!-- BEGIN GENERATED: AFF-LIFECYCLE-ROSTER -->
-Lifecycle `2.0.0`; lifecycle-manifest schema `1.0.0`. Source: [`.github/agents/AFF-LIFECYCLE.json`](.github/agents/AFF-LIFECYCLE.json).
+Lifecycle `2.1.0`; lifecycle-manifest schema `1.0.0`. Source: [`.github/agents/AFF-LIFECYCLE.json`](.github/agents/AFF-LIFECYCLE.json).
 
-| ID | Agent profile | Display name | Model | Route or gate |
-|---|---|---|---|---|
-| AFF-0 | `AFF-0-coordinator` | Phase 0 — Coordinate | `gpt-5.6-sol` | Standard route to Phase 1 |
-| AFF-1 | `AFF-1-requirements` | Phase 1 — Requirements | `gpt-5.6-sol` | Standard route to Phase 2 |
-| AFF-2 | `AFF-2-togafarchitecture` | Phase 2 — TOGAF Architecture | `gpt-5.6-sol` | Standard route to Phase 3 |
-| AFF-3 | `AFF-3-design` | Phase 3 — Azure Design | `gpt-5.6-sol` | Standard route to Phase 4 |
-| AFF-4 | `AFF-4-implementation-plan` | Phase 4 — Implementation Plan | `gpt-5.6-sol` | Standard route to Phase 5 |
-| AFF-5 | `AFF-5-coding` | Phase 5 — Coding | `gpt-5.3-codex` | Standard route to Phase 6 |
-| AFF-6 | `AFF-6-presentation` | Phase 6 — C-level Presentation | `gpt-5.6-sol` | Standard route end |
-| AFF-7 | `AFF-7-deployer` | Phase 7 — Deployment | `gpt-5.6-sol` | Optional; human invocation only. Requires: approved-phase-6, scoped-attempt-authorisation |
-| AFF-8 | `AFF-8-testing` | Phase 8 — Runtime Testing | `gpt-5.3-codex` | Optional; human invocation only. Requires: phase-7-succeeded, approved-phase-7, scoped-test-attempt-authorisation |
-| AFF-A | `AFF-A-rubber-duck` | Rubber Duck Reviewer | `gpt-5.4` | Independent model required |
-| AFF-B | `AFF-B-security-compliance` | Security and Compliance Reviewer | `gpt-5.6-sol` | Independent assurance role |
+| ID | Agent profile | Display name | Copilot default | Claude default | Route or gate |
+|---|---|---|---|---|---|
+| AFF-0 | `AFF-0-coordinator` | Phase 0 — Coordinate | `gpt-5.6-sol` | `claude-opus-5-5` | Standard route to Phase 1 |
+| AFF-1 | `AFF-1-requirements` | Phase 1 — Requirements | `gpt-5.6-sol` | `claude-opus-5-5` | Standard route to Phase 2 |
+| AFF-2 | `AFF-2-togafarchitecture` | Phase 2 — TOGAF Architecture | `gpt-5.6-sol` | `claude-opus-5-5` | Standard route to Phase 3 |
+| AFF-3 | `AFF-3-design` | Phase 3 — Azure Design | `gpt-5.6-sol` | `claude-opus-5-5` | Standard route to Phase 4 |
+| AFF-4 | `AFF-4-implementation-plan` | Phase 4 — Implementation Plan | `gpt-5.6-sol` | `claude-opus-5-5` | Standard route to Phase 5 |
+| AFF-5 | `AFF-5-coding` | Phase 5 — Coding | `gpt-5.3-codex` | `claude-opus-5-5` | Standard route to Phase 6 |
+| AFF-6 | `AFF-6-presentation` | Phase 6 — C-level Presentation | `gpt-5.6-sol` | `claude-opus-5-5` | Standard route end |
+| AFF-7 | `AFF-7-deployer` | Phase 7 — Deployment | `gpt-5.6-sol` | `claude-opus-5-5` | Optional; human invocation only. Requires: approved-phase-6, scoped-attempt-authorisation |
+| AFF-8 | `AFF-8-testing` | Phase 8 — Runtime Testing | `gpt-5.3-codex` | `claude-opus-5-5` | Optional; human invocation only. Requires: phase-7-succeeded, approved-phase-7, scoped-test-attempt-authorisation |
+| AFF-A | `AFF-A-rubber-duck` | Rubber Duck Reviewer | `gpt-5.4` | `claude-sonnet-5-5` | Independent model required |
+| AFF-B | `AFF-B-security-compliance` | Security and Compliance Reviewer | `gpt-5.6-sol` | `claude-opus-5-5` | Independent assurance role |
 <!-- END GENERATED: AFF-LIFECYCLE-ROSTER -->
 
 ## Core principles
 
 - **Human-final governance:** agents prepare and challenge; the human decides and signs.
-- **Independent review:** the Rubber Duck Reviewer uses a different GPT model from the phase agent.
+- **Independent review:** the Rubber Duck Reviewer uses a different model from every phase owner.
 - **Evidence-bound convergence:** both reviewers must cover identical artifact hashes.
 - **Signed human decisions:** approvals and rejections are signed with a passphrase-protected key that no
   agent can use. On a machine holding that key, an unsigned decision is rejected.
@@ -287,12 +428,14 @@ Lifecycle `2.0.0`; lifecycle-manifest schema `1.0.0`. Source: [`.github/agents/A
 
 ## Model availability
 
-Confirm every model in the generated roster is available in your Copilot host before the first case.
+Confirm each exact model assigned to the selected host is available before the first case. Copilot
+defaults come from the lifecycle manifest; Claude defaults come from its validated wrappers.
 
-If one is unavailable, you must approve a GPT replacement and update the agent frontmatter,
-`.github/agents/AFF-OPERATING-CONTRACT.md`, and `.github/agents/AFF-LIFECYCLE.json` together. The Rubber
-Duck Reviewer must always differ from the phase agent. Run `npm run docs:generate` and the full
-validation sequence after any substitution.
+A per-case substitution needs a human decision and an `approvalReference` in the model plan. It does
+not require changing repository defaults. AFF-A must differ from every phase owner. A repository-default
+change must update the matching profiles, policy, generated documentation, and tests together.
+If the assigned model is unavailable or the observed runtime model differs, stop. A model's own
+self-description does not prove its runtime identity.
 
 ## Practise with Contoso
 
@@ -303,6 +446,15 @@ credential, or personal data.
 Use `cases/contoso-permit-services/input/` to exercise Phase 0 and the opening of Phase 1 without Azure
 access, deployment, or live testing. Its JSON expectations define the safety and routing conditions
 that must hold. `npm run smoke:contoso` executes every expectation as an assertion.
+
+The original command retains the legacy `1.0.0` regression journey. Exercise the new contract with:
+
+```powershell
+npm run smoke:contoso -- --host github-copilot --schema-version 1.1.0
+npm run smoke:contoso -- --host claude-code --schema-version 1.1.0
+```
+
+Both commands are offline synthetic checks. They do not invoke either host or a live model.
 
 ## Outputs
 

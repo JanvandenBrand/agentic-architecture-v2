@@ -9,7 +9,7 @@ import writeFileAtomic from "write-file-atomic";
 
 import { hashArtifact, hashArtifactBytes } from "../case/hash.js";
 import { validateHashBindings } from "../case/hash.js";
-import { validateLoadedCase } from "../case/index.js";
+import { resolveCasePolicy, validateLoadedCase } from "../case/index.js";
 import {
   approvalModeLabel,
   resolveApprovalMode,
@@ -944,6 +944,23 @@ export async function renderPhaseHtml(
       path: metadataPath.split(path.sep).join("/"),
       sha256: hashArtifactBytes(metadata.absolutePath, metadataBytes),
     });
+  }
+  // Phase metadata may exist before a model plan, journal, reviews, or approval.
+  // Check the supplied contract without imposing the completed-case gates.
+  if (new Set(metadataRecords.map(({ value }) => value.schemaVersion)).size > 1) {
+    throw new RenderError(
+      "Renderer metadata mixes AFF record schema versions.",
+      "Use the case's original contract version for every metadata record.",
+    );
+  }
+  if (metadataRecords.some(({ value }) => value.recordType === "model-plan")) {
+    const policy = resolveCasePolicy(metadataRecords);
+    if (policy.errors.length > 0) {
+      throw new RenderError(
+        policy.errors[0]!.message,
+        policy.errors[0]!.remediation,
+      );
+    }
   }
   const metadataHashErrors = await validateHashBindings(
     options.caseRoot,

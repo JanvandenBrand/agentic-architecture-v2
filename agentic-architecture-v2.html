@@ -482,7 +482,7 @@ footer.page p+p{margin-top:.7rem}
       </article>
 
       <article class="step">
-        <div class="step-head"><span class="step-num">03</span><h3>Connect GitHub Copilot</h3><span class="when">For real cases</span></div>
+        <div class="step-head"><span class="step-num">03</span><h3>Choose your host</h3><span class="when">Before a case</span></div>
         <p>Open Copilot CLI from the repository root, then confirm discovery:</p>
         <ol>
           <li><code>/agent</code> — confirm <code>AFF-0-coordinator</code> is listed.</li>
@@ -492,6 +492,9 @@ footer.page p+p{margin-top:.7rem}
         locations GitHub documents for
         <a href="https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/create-custom-agents-for-cli">custom agents</a>
         and <a href="https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-skills">project skills</a>.</p>
+        <p>The optional <a href="docs/claude-code.md">Claude Code adapter</a> points to the same AFF
+        instructions. Its offline checks do not qualify live behaviour. Complete the separate
+        human-authorised qualification before using Claude for real cases.</p>
         <span class="note safe"><strong>Safe stop point.</strong> Discovery proves packaging only — not
         model quality, reviewer convergence, or production fitness.</span>
       </article>
@@ -502,6 +505,9 @@ footer.page p+p{margin-top:.7rem}
         <p>Add the architecture brief and supporting evidence, then invoke
         <code>AFF-0-coordinator</code>. Do not start with AFF-1 — Phase 0 establishes the source
         inventory, model plan, shared records, interview preparation, and review routing.</p>
+        <p>New cases use schema <code>1.1.0</code> and record one host for the whole case.
+        Existing Copilot <code>1.0.0</code> cases stay unchanged. Do not switch hosts or rewrite
+        signed evidence.</p>
         <span class="note warn"><strong>Never commit case data.</strong> Case folders stay local and are
         ignored by Git. Never include credentials, tokens, or unnecessary personal or regulated data.</span>
       </article>
@@ -593,59 +599,60 @@ footer.page p+p{margin-top:.7rem}
 
 <!-- BEGIN GENERATED: AFF-LIFECYCLE-ROSTER -->
         <p class="generated-route"><strong>Manifest route:</strong> Phase 0 → Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6. Phases 7 and 8 remain outside the standard route and require explicit human invocation.</p>
+        <p>Defaults are read from each host configuration. Offline checks do not prove live Claude qualification.</p>
         <div class="roster">
           <article class="agent-card" data-track="standard">
-            <div class="agent-meta"><span class="agent-id">AFF-0</span><span class="model">gpt-5.6-sol</span></div>
+            <div class="agent-meta"><span class="agent-id">AFF-0</span><span class="model">Copilot: gpt-5.6-sol | Claude: claude-opus-5-5</span></div>
             <h3>Phase 0 — Coordinate</h3>
             <p><code>AFF-0-coordinator</code><br>Standard route to Phase 1</p>
           </article>
           <article class="agent-card" data-track="standard">
-            <div class="agent-meta"><span class="agent-id">AFF-1</span><span class="model">gpt-5.6-sol</span></div>
+            <div class="agent-meta"><span class="agent-id">AFF-1</span><span class="model">Copilot: gpt-5.6-sol | Claude: claude-opus-5-5</span></div>
             <h3>Phase 1 — Requirements</h3>
             <p><code>AFF-1-requirements</code><br>Standard route to Phase 2</p>
           </article>
           <article class="agent-card" data-track="standard">
-            <div class="agent-meta"><span class="agent-id">AFF-2</span><span class="model">gpt-5.6-sol</span></div>
+            <div class="agent-meta"><span class="agent-id">AFF-2</span><span class="model">Copilot: gpt-5.6-sol | Claude: claude-opus-5-5</span></div>
             <h3>Phase 2 — TOGAF Architecture</h3>
             <p><code>AFF-2-togafarchitecture</code><br>Standard route to Phase 3</p>
           </article>
           <article class="agent-card" data-track="standard">
-            <div class="agent-meta"><span class="agent-id">AFF-3</span><span class="model">gpt-5.6-sol</span></div>
+            <div class="agent-meta"><span class="agent-id">AFF-3</span><span class="model">Copilot: gpt-5.6-sol | Claude: claude-opus-5-5</span></div>
             <h3>Phase 3 — Azure Design</h3>
             <p><code>AFF-3-design</code><br>Standard route to Phase 4</p>
           </article>
           <article class="agent-card" data-track="standard">
-            <div class="agent-meta"><span class="agent-id">AFF-4</span><span class="model">gpt-5.6-sol</span></div>
+            <div class="agent-meta"><span class="agent-id">AFF-4</span><span class="model">Copilot: gpt-5.6-sol | Claude: claude-opus-5-5</span></div>
             <h3>Phase 4 — Implementation Plan</h3>
             <p><code>AFF-4-implementation-plan</code><br>Standard route to Phase 5</p>
           </article>
           <article class="agent-card" data-track="standard">
-            <div class="agent-meta"><span class="agent-id">AFF-5</span><span class="model">gpt-5.3-codex</span></div>
+            <div class="agent-meta"><span class="agent-id">AFF-5</span><span class="model">Copilot: gpt-5.3-codex | Claude: claude-opus-5-5</span></div>
             <h3>Phase 5 — Coding</h3>
             <p><code>AFF-5-coding</code><br>Standard route to Phase 6</p>
           </article>
           <article class="agent-card" data-track="standard">
-            <div class="agent-meta"><span class="agent-id">AFF-6</span><span class="model">gpt-5.6-sol</span></div>
+            <div class="agent-meta"><span class="agent-id">AFF-6</span><span class="model">Copilot: gpt-5.6-sol | Claude: claude-opus-5-5</span></div>
             <h3>Phase 6 — C-level Presentation</h3>
             <p><code>AFF-6-presentation</code><br>Standard route end</p>
           </article>
           <article class="agent-card" data-track="optional">
-            <div class="agent-meta"><span class="agent-id">AFF-7</span><span class="model">gpt-5.6-sol</span></div>
+            <div class="agent-meta"><span class="agent-id">AFF-7</span><span class="model">Copilot: gpt-5.6-sol | Claude: claude-opus-5-5</span></div>
             <h3>Phase 7 — Deployment</h3>
             <p><code>AFF-7-deployer</code><br>Optional; human invocation only. Requires: approved-phase-6, scoped-attempt-authorisation</p>
           </article>
           <article class="agent-card" data-track="optional">
-            <div class="agent-meta"><span class="agent-id">AFF-8</span><span class="model">gpt-5.3-codex</span></div>
+            <div class="agent-meta"><span class="agent-id">AFF-8</span><span class="model">Copilot: gpt-5.3-codex | Claude: claude-opus-5-5</span></div>
             <h3>Phase 8 — Runtime Testing</h3>
             <p><code>AFF-8-testing</code><br>Optional; human invocation only. Requires: phase-7-succeeded, approved-phase-7, scoped-test-attempt-authorisation</p>
           </article>
           <article class="agent-card" data-track="review">
-            <div class="agent-meta"><span class="agent-id">AFF-A</span><span class="model">gpt-5.4</span></div>
+            <div class="agent-meta"><span class="agent-id">AFF-A</span><span class="model">Copilot: gpt-5.4 | Claude: claude-sonnet-5-5</span></div>
             <h3>Rubber Duck Reviewer</h3>
             <p><code>AFF-A-rubber-duck</code><br>Must use a different model from every phase owner.</p>
           </article>
           <article class="agent-card" data-track="review">
-            <div class="agent-meta"><span class="agent-id">AFF-B</span><span class="model">gpt-5.6-sol</span></div>
+            <div class="agent-meta"><span class="agent-id">AFF-B</span><span class="model">Copilot: gpt-5.6-sol | Claude: claude-opus-5-5</span></div>
             <h3>Security and Compliance Reviewer</h3>
             <p><code>AFF-B-security-compliance</code><br>Independent assurance role; same-model use is permitted by the lifecycle.</p>
           </article>
@@ -686,7 +693,7 @@ footer.page p+p{margin-top:.7rem}
 
 <footer class="page">
   <div class="wrap">
-    <p>Agentic Architecture v2 — a human-centred architecture workflow for GitHub Copilot. Apache 2.0.</p>
+    <p>Agentic Architecture v2 — one human-centred architecture workflow with Copilot and Claude Code packaging. Apache 2.0.</p>
     <p>This site describes the framework. It is not architecture advice, not a support commitment, and
     not evidence under the AFF contract.</p>
     <div class="foot-links">

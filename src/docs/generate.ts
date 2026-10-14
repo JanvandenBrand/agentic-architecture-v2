@@ -1,4 +1,5 @@
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -6,6 +7,7 @@ import writeFileAtomic from "write-file-atomic";
 
 import { isRecord } from "../common/json.js";
 import { readLifecycle } from "../framework/lifecycle.js";
+import { readHostModelDefaults } from "../framework/hosts.js";
 import { runContosoSmoke } from "../smoke/contoso.js";
 import type {
   LifecycleManifest,
@@ -54,20 +56,33 @@ function routeLabel(phase: LifecyclePhase): string {
     : `Standard route to Phase ${phase.next}`;
 }
 
-export function renderReadmeRoster(lifecycle: LifecycleManifest): string {
+function claudeDefault(models: ReadonlyMap<string, string>, owner: string): string {
+  const model = models.get(owner);
+  if (!model) {
+    throw new Error(`Claude default model is missing for ${owner}.`);
+  }
+  return model;
+}
+
+export function renderReadmeRoster(
+  lifecycle: LifecycleManifest,
+  claudeModels?: ReadonlyMap<string, string>,
+): string {
+  const claudeCell = (owner: string): string =>
+    claudeModels ? ` \`${claudeDefault(claudeModels, owner)}\` |` : "";
   const phaseRows = lifecycle.phases.map(
     (phase) =>
-      `| AFF-${phase.id} | \`${phase.owner}\` | ${phase.displayName} | \`${phase.model}\` | ${routeLabel(phase)} |`,
+      `| AFF-${phase.id} | \`${phase.owner}\` | ${phase.displayName} | \`${phase.model}\` |${claudeCell(phase.owner)} ${routeLabel(phase)} |`,
   );
   const reviewerRows = lifecycle.reviewers.map(
     (reviewer) =>
-      `| ${reviewer.id} | \`${reviewer.owner}\` | ${reviewer.displayName} | \`${reviewer.model}\` | ${reviewer.mustDifferFromPhaseOwner ? "Independent model required" : "Independent assurance role"} |`,
+      `| ${reviewer.id} | \`${reviewer.owner}\` | ${reviewer.displayName} | \`${reviewer.model}\` |${claudeCell(reviewer.owner)} ${reviewer.mustDifferFromPhaseOwner ? "Independent model required" : "Independent assurance role"} |`,
   );
   return [
     `Lifecycle \`${lifecycle.version}\`; lifecycle-manifest schema \`${lifecycle.schemaVersion}\`. Source: [\`.github/agents/AFF-LIFECYCLE.json\`](.github/agents/AFF-LIFECYCLE.json).`,
     "",
-    "| ID | Agent profile | Display name | Model | Route or gate |",
-    "|---|---|---|---|---|",
+    `| ID | Agent profile | Display name | Copilot default |${claudeModels ? " Claude default |" : ""} Route or gate |`,
+    `|---|---|---|---|---|${claudeModels ? "---|" : ""}`,
     ...phaseRows,
     ...reviewerRows,
   ].join("\n");
@@ -82,39 +97,60 @@ function escapeHtml(value: string): string {
     .replaceAll("'", "&#39;");
 }
 
-function renderPhaseCard(phase: LifecyclePhase): string {
+function modelLabel(
+  agent: { owner: string; model: string },
+  claudeModels?: ReadonlyMap<string, string>,
+): string {
+  return escapeHtml(claudeModels
+    ? `Copilot: ${agent.model} | Claude: ${claudeDefault(claudeModels, agent.owner)}`
+    : `Copilot: ${agent.model}`);
+}
+
+function renderPhaseCard(
+  phase: LifecyclePhase,
+  claudeModels?: ReadonlyMap<string, string>,
+): string {
   const track = phase.humanInvocableOnly ? "optional" : "standard";
   return [
     `          <article class="agent-card" data-track="${track}">`,
-    `            <div class="agent-meta"><span class="agent-id">AFF-${escapeHtml(phase.id)}</span><span class="model">${escapeHtml(phase.model)}</span></div>`,
+    `            <div class="agent-meta"><span class="agent-id">AFF-${escapeHtml(phase.id)}</span><span class="model">${modelLabel(phase, claudeModels)}</span></div>`,
     `            <h3>${escapeHtml(phase.displayName)}</h3>`,
     `            <p><code>${escapeHtml(phase.owner)}</code><br>${escapeHtml(routeLabel(phase))}</p>`,
     "          </article>",
   ].join("\n");
 }
 
-function renderReviewerCard(reviewer: LifecycleReviewer): string {
+function renderReviewerCard(
+  reviewer: LifecycleReviewer,
+  claudeModels?: ReadonlyMap<string, string>,
+): string {
   const gate = reviewer.mustDifferFromPhaseOwner
     ? "Must use a different model from every phase owner."
     : "Independent assurance role; same-model use is permitted by the lifecycle.";
   return [
     '          <article class="agent-card" data-track="review">',
-    `            <div class="agent-meta"><span class="agent-id">${escapeHtml(reviewer.id)}</span><span class="model">${escapeHtml(reviewer.model)}</span></div>`,
+    `            <div class="agent-meta"><span class="agent-id">${escapeHtml(reviewer.id)}</span><span class="model">${modelLabel(reviewer, claudeModels)}</span></div>`,
     `            <h3>${escapeHtml(reviewer.displayName)}</h3>`,
     `            <p><code>${escapeHtml(reviewer.owner)}</code><br>${escapeHtml(gate)}</p>`,
     "          </article>",
   ].join("\n");
 }
 
-export function renderSiteRoster(lifecycle: LifecycleManifest): string {
+export function renderSiteRoster(
+  lifecycle: LifecycleManifest,
+  claudeModels?: ReadonlyMap<string, string>,
+): string {
   const standardRoute = lifecycle.standardRoute
     .map((phaseId) => `Phase ${phaseId}`)
     .join(" → ");
   return [
     `        <p class="generated-route"><strong>Manifest route:</strong> ${escapeHtml(standardRoute)}. Phases 7 and 8 remain outside the standard route and require explicit human invocation.</p>`,
+    ...(claudeModels
+      ? ['        <p>Defaults are read from each host configuration. Offline checks do not prove live Claude qualification.</p>']
+      : []),
     '        <div class="roster">',
-    ...lifecycle.phases.map(renderPhaseCard),
-    ...lifecycle.reviewers.map(renderReviewerCard),
+    ...lifecycle.phases.map((phase) => renderPhaseCard(phase, claudeModels)),
+    ...lifecycle.reviewers.map((reviewer) => renderReviewerCard(reviewer, claudeModels)),
     "        </div>",
   ].join("\n");
 }
@@ -319,6 +355,12 @@ export async function generateDocumentation(
   checkOnly = false,
 ): Promise<DocumentationGenerationResult> {
   const lifecycle = await readLifecycle(repositoryRoot);
+  const claude = existsSync(path.join(repositoryRoot, ".claude"))
+    ? await readHostModelDefaults(repositoryRoot, "claude-code", lifecycle)
+    : undefined;
+  if (claude && claude.errors.length > 0) {
+    throw new Error(`Claude defaults cannot be documented: ${claude.errors[0]?.message}`);
+  }
   const [readme, site] = await Promise.all([
     readFile(path.join(repositoryRoot, README_PATH), "utf8"),
     readFile(path.join(repositoryRoot, SITE_PATH), "utf8"),
@@ -326,12 +368,12 @@ export async function generateDocumentation(
   const expectedReadme = replaceGeneratedSection(
     readme,
     README_MARKER,
-    renderReadmeRoster(lifecycle),
+    renderReadmeRoster(lifecycle, claude?.models),
   );
   const expectedSite = replaceGeneratedSection(
     site,
     SITE_MARKER,
-    renderSiteRoster(lifecycle),
+    renderSiteRoster(lifecycle, claude?.models),
   );
   const expectedEvidence = await renderContosoEvidence(repositoryRoot);
   const changedFiles: string[] = [];

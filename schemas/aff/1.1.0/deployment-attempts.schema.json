@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/aramsmith/agentic-architecture-v2/schemas/aff/1.1.0/deployment-attempts.schema.json",
+  "title": "AFF deployment attempts 1.1.0",
+  "type": "object",
+  "required": ["schemaVersion", "recordType", "caseName", "artifactPrefix", "attempts"],
+  "properties": {
+    "schemaVersion": { "$ref": "shared.schema.json#/$defs/schemaVersion" },
+    "recordType": { "const": "deployment-attempts" },
+    "caseName": { "$ref": "shared.schema.json#/$defs/caseName" },
+    "artifactPrefix": { "$ref": "shared.schema.json#/$defs/artifactPrefix" },
+    "attempts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["attemptId", "authorisedBy", "authorisedAt", "target", "releaseManifest", "packageHash", "parameterSetHash", "procedureVersion", "identityMethod", "permittedOperations", "startedAt", "outcome", "evidence"],
+        "properties": {
+          "attemptId": { "type": "string", "minLength": 1 },
+          "authorisedBy": { "type": "string", "minLength": 1 },
+          "authorisedAt": { "type": "string", "format": "date-time" },
+          "target": {
+            "type": "object",
+            "required": ["tenant", "subscription", "environment", "regions"],
+            "properties": {
+              "tenant": { "type": "string", "minLength": 1 },
+              "subscription": { "type": "string", "minLength": 1 },
+              "resourceGroups": { "type": "array", "items": { "type": "string" } },
+              "environment": { "type": "string", "minLength": 1 },
+              "regions": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+            },
+            "additionalProperties": false
+          },
+          "releaseManifest": { "$ref": "shared.schema.json#/$defs/artifactBinding" },
+          "packageHash": { "$ref": "shared.schema.json#/$defs/sha256" },
+          "parameterSetHash": { "$ref": "shared.schema.json#/$defs/sha256" },
+          "procedureVersion": { "type": "string", "minLength": 1 },
+          "identityMethod": { "type": "string", "minLength": 1 },
+          "permittedOperations": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+          "startedAt": { "type": "string", "format": "date-time" },
+          "completedAt": { "type": "string", "format": "date-time" },
+          "outcome": { "enum": ["SUCCEEDED", "FAILED", "STOPPED", "ROLLED_BACK"] },
+          "evidence": { "type": "array", "items": { "$ref": "shared.schema.json#/$defs/artifactBinding" } }
+        },
+        "additionalProperties": false
+      }
+    },
+    "extensions": { "$ref": "shared.schema.json#/$defs/extensions" }
+  },
+  "additionalProperties": false
+}

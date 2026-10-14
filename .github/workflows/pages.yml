@@ -8,6 +8,8 @@ on:
       - docs/compatibility.md
       - docs/troubleshooting.md
       - docs/release-process.md
+      - docs/claude-code.md
+      - docs/migrations/1.0.0-to-1.1.0.md
       - .github/workflows/pages.yml
   workflow_dispatch:
 
@@ -45,6 +47,9 @@ jobs:
           cp docs/compatibility.md _site/docs/compatibility.md
           cp docs/troubleshooting.md _site/docs/troubleshooting.md
           cp docs/release-process.md _site/docs/release-process.md
+          cp docs/claude-code.md _site/docs/claude-code.md
+          mkdir -p _site/docs/migrations
+          cp docs/migrations/1.0.0-to-1.1.0.md _site/docs/migrations/1.0.0-to-1.1.0.md
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0

@@ -58,6 +58,7 @@ npm run test:governance
 npm run test:adoption
 npm run test:renderer
 npm run test:smoke
+npm run test:hosts
 ```
 
 Run `npm run test:renderer` for changes to Markdown handling, sanitisation, links, assets, paths,
@@ -65,7 +66,8 @@ hash-bound rendering, or renderer command behaviour. The Contoso smoke is offlin
 must not call a model, access Azure, or create a real approval.
 
 Every pull request to `main` runs the stable **Repository validation** and **CodeQL** checks. Repository
-validation covers the complete command sequence above plus governance files, issue forms, security
+validation runs all tests on Windows and Ubuntu, with an aggregate gate that requires both jobs to
+succeed. It covers the complete command sequence above plus governance files, issue forms, security
 routing, internal Markdown links, action pinning, CODEOWNERS coverage, package licence metadata, and
 AFF lifecycle/profile/skill safety boundaries.
 
@@ -110,6 +112,14 @@ surface in the same pull request:
 When changing a skill path, name, trigger, or contract reference, update all profiles, operating
 contract references, smoke expectations, and tests that depend on it. Restart Copilot CLI to reload
 agent profiles; use `/skills reload` for skill-only changes.
+
+Claude wrappers remain thin pointers to the shared profiles. Their fields, body, tool mapping, model
+separation, and MCP configuration are checked by `claude-adapter`. Update matching wrapper descriptions
+when changing authoritative descriptions. Never add independent phase instructions to a wrapper.
+
+Schema `1.0.0` is retained unchanged. Add new shapes under `1.1.0` and keep version-specific catalogue
+entries. Test legacy Copilot and both new-contract hosts; do not rewrite existing case evidence.
+Live host qualification is separate from offline tests and requires human authorisation.
 
 ## Security-sensitive changes
 

@@ -1,4 +1,5 @@
 import { isRecord } from "../common/json.js";
+import type { ExecutionHost } from "../framework/hosts.js";
 import type { LifecycleManifest, ValidationError } from "../types.js";
 import type { LoadedRecord } from "./records.js";
 import { asReview, type Review } from "./review-records.js";
@@ -8,6 +9,7 @@ interface ModelAssignment {
   model: string;
   separationStatus: string;
   approvalReference?: string;
+  available?: boolean;
 }
 
 function isModelAssignment(value: unknown): value is ModelAssignment {
@@ -24,13 +26,9 @@ function isModelAssignment(value: unknown): value is ModelAssignment {
 export function validateModelPlans(
   records: LoadedRecord[],
   lifecycle: LifecycleManifest,
+  defaults: ReadonlyMap<string, string>,
 ): ValidationError[] {
-  const expected = new Map(
-    [...lifecycle.phases, ...lifecycle.reviewers].map(({ owner, model }) => [
-      owner,
-      model,
-    ]),
-  );
+  const expectedAgents = [...lifecycle.phases, ...lifecycle.reviewers].map(({ owner }) => owner);
   const phaseOwners = new Set(lifecycle.phases.map(({ owner }) => owner));
   const errors: ValidationError[] = [];
   const modelPlans = records.filter(
@@ -62,9 +60,17 @@ export function validateModelPlans(
         });
       }
       byAgent.set(assignment.agent, assignment);
+      if (record.value.schemaVersion === "1.1.0" && assignment.available === false) {
+        errors.push({
+          file: record.file,
+          invariant: "model-plan-consistency",
+          message: `${assignment.agent} has an active assignment explicitly marked unavailable.`,
+          remediation: "Verify model availability before use and record any approved substitution explicitly; do not silently fall back.",
+        });
+      }
     }
 
-    for (const [agent, defaultModel] of expected) {
+    for (const agent of expectedAgents) {
       const assignment = byAgent.get(agent);
       if (!assignment) {
         errors.push({
@@ -75,13 +81,13 @@ export function validateModelPlans(
         });
         continue;
       }
-      if (assignment.model !== defaultModel && !assignment.approvalReference) {
+      if (assignment.model !== defaults.get(agent) && !assignment.approvalReference) {
         errors.push({
           file: record.file,
           invariant: "model-plan-consistency",
           message: `${agent} changes the default model without human approval evidence.`,
           remediation:
-            "Restore the lifecycle model or add the explicit approval record reference.",
+            "Restore the selected host's default model or add the explicit approval record reference.",
         });
       }
     }
@@ -103,7 +109,7 @@ export function validateModelPlans(
         message:
           "The case model plan does not keep AFF-A on a different model from every phase owner.",
         remediation:
-          "Assign AFF-A a different available GPT model and record separationStatus SATISFIED.",
+          "Assign AFF-A a different available model allowed by the case host and record separationStatus SATISFIED.",
       });
     }
   }
@@ -114,13 +120,9 @@ export function validateModelPlans(
 export function validateReviewModels(
   records: LoadedRecord[],
   lifecycle: LifecycleManifest,
+  defaults: ReadonlyMap<string, string>,
 ): ValidationError[] {
-  const activeModels = new Map(
-    [...lifecycle.phases, ...lifecycle.reviewers].map(({ owner, model }) => [
-      owner,
-      model,
-    ]),
-  );
+  const activeModels = new Map(defaults);
   const modelPlan = records.find(
     ({ value }) => value.recordType === "model-plan",
   );
@@ -153,9 +155,10 @@ export function validateReviewModels(
           invariant: "lifecycle-profile-consistency",
           message: `${review.reviewer} review model "${review.model}" differs from the active assignment.`,
           remediation:
-            "Use the active lifecycle or human-approved model-plan assignment.",
+            "Use the active case assignment or the selected host's default for a partial legacy case.",
         });
       }
+
       if (
         review.reviewer === "AFF-A" &&
         review.model === activeModels.get(phaseOwners.get(review.phaseId) ?? "")
@@ -180,4 +183,24 @@ export function validateReviewModels(
       }
       return errors;
     });
+}
+
+export function validateModelProviders(
+  records: LoadedRecord[],
+  host: ExecutionHost,
+): ValidationError[] {
+  const prefix = host === "github-copilot" ? "gpt-" : "claude-";
+  return records.flatMap(({ file, value }) => {
+    const models = value.recordType === "model-plan" && Array.isArray(value.assignments)
+      ? value.assignments.filter(isRecord).map(({ model }) => model)
+      : value.recordType === "review-record" ? [value.model] : [];
+    return models
+      .filter((model): model is string => typeof model === "string" && !model.startsWith(prefix))
+      .map((model) => ({
+        file,
+        invariant: "case-host",
+        message: `Model "${model}" is not allowed on "${host}"; this host requires the "${prefix}" provider prefix.`,
+        remediation: "Use the selected host's provider and record any approved substitution; approval cannot change the case host.",
+      }));
+  });
 }

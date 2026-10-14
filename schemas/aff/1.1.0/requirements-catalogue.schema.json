@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/aramsmith/agentic-architecture-v2/schemas/aff/1.1.0/requirements-catalogue.schema.json",
+  "title": "AFF requirements catalogue 1.1.0",
+  "type": "object",
+  "required": ["schemaVersion", "recordType", "caseName", "artifactPrefix", "revision", "requirements"],
+  "properties": {
+    "schemaVersion": { "$ref": "shared.schema.json#/$defs/schemaVersion" },
+    "recordType": { "const": "requirements-catalogue" },
+    "caseName": { "$ref": "shared.schema.json#/$defs/caseName" },
+    "artifactPrefix": { "$ref": "shared.schema.json#/$defs/artifactPrefix" },
+    "revision": { "type": "string", "minLength": 1 },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "class",
+          "category",
+          "priority",
+          "status",
+          "owner",
+          "statement",
+          "rationale",
+          "source",
+          "dependencies",
+          "derivedFrom",
+          "acceptanceCriteria"
+        ],
+        "properties": {
+          "id": { "type": "string", "pattern": "^(?:AP|BR|FR|DR|AR|TR|SR|NR|IR)-[0-9]{3}$" },
+          "class": { "type": "string", "minLength": 1 },
+          "category": { "enum": ["AP", "BR", "FR", "DR", "AR", "TR", "SR", "NR", "IR"] },
+          "priority": { "enum": ["Must", "Should", "Could", "Won't"] },
+          "status": { "enum": ["Proposed", "Active", "Withdrawn", "Superseded"] },
+          "owner": { "type": "string", "minLength": 1 },
+          "statement": { "type": "string", "minLength": 1 },
+          "rationale": { "type": "string", "minLength": 1 },
+          "source": { "type": "string", "minLength": 1 },
+          "dependencies": {
+            "type": "array",
+            "items": { "type": "string" },
+            "uniqueItems": true
+          },
+          "derivedFrom": {
+            "type": "array",
+            "items": { "type": "string" },
+            "uniqueItems": true
+          },
+          "acceptanceCriteria": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "testId",
+                "precondition",
+                "action",
+                "observableOutcome",
+                "expectation",
+                "environment",
+                "evidenceSource"
+              ],
+              "properties": {
+                "testId": { "type": "string", "minLength": 1 },
+                "precondition": { "type": "string", "minLength": 1 },
+                "action": { "type": "string", "minLength": 1 },
+                "observableOutcome": { "type": "string", "minLength": 1 },
+                "expectation": { "type": "string", "minLength": 1 },
+                "environment": { "type": "string", "minLength": 1 },
+                "evidenceSource": { "type": "string", "minLength": 1 }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "extensions": { "$ref": "shared.schema.json#/$defs/extensions" }
+  },
+  "additionalProperties": false
+}

@@ -30,6 +30,20 @@ material source is unreadable or the Phase 0 gate is incomplete.
 - A material inferred fact or requirement must be explicitly confirmed.
 - Interview confirmation is authoring evidence, not final Phase 1 approval.
 
+### Claude main-conversation transport
+
+On Claude Code, author one question with a stable decision ID and any choices, then return it to
+AFF-0. AFF-0 presents it unchanged in the main conversation and returns the exact human answer and
+decision ID. You remain the interview owner: only AFF-1 updates the decision record and chooses the
+next question. Do not assume subagents expose `AskUserQuestion`, and do not add command execution or
+delegation to surface a question.
+
+Persist the ID, authored question, and exact answer in `decisions[].id`, `decisions[].question`, and
+`decisions[].answer` of the existing `interview-decisions` record. Put interpretation in `rationale`;
+never paraphrase the stored answer. Append corrections to `corrections` without rewriting earlier
+evidence. Resume from persisted records, not a transient subagent identifier. Silence,
+cancellation, and interruption are not consent: leave the decision open and do not invent confirmation.
+
 ## Requirements management
 
 Establish the approach before baselining requirements:

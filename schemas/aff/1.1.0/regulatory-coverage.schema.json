@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/aramsmith/agentic-architecture-v2/schemas/aff/1.1.0/regulatory-coverage.schema.json",
+  "title": "AFF regulatory coverage 1.1.0",
+  "type": "object",
+  "required": ["schemaVersion", "recordType", "caseName", "artifactPrefix", "coverage"],
+  "properties": {
+    "schemaVersion": { "$ref": "shared.schema.json#/$defs/schemaVersion" },
+    "recordType": { "const": "regulatory-coverage" },
+    "caseName": { "$ref": "shared.schema.json#/$defs/caseName" },
+    "artifactPrefix": { "$ref": "shared.schema.json#/$defs/artifactPrefix" },
+    "coverage": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["instrument", "jurisdiction", "scopeTrigger", "officialSource", "publicationOrEffectiveDate", "obligation", "confidence", "humanConfirmation", "requirements", "controls", "status"],
+        "properties": {
+          "instrument": { "type": "string", "minLength": 1 },
+          "jurisdiction": { "type": "string", "minLength": 1 },
+          "scopeTrigger": { "type": "string", "minLength": 1 },
+          "officialSource": { "type": "string", "format": "uri" },
+          "publicationOrEffectiveDate": { "type": "string", "format": "date" },
+          "obligation": { "type": "string", "minLength": 1 },
+          "confidence": { "enum": ["CONFIRMED", "INFERRED"] },
+          "humanConfirmation": { "type": "string" },
+          "requirements": { "type": "array", "items": { "type": "string" } },
+          "controls": { "type": "array", "items": { "type": "string" } },
+          "status": { "enum": ["PROPOSED", "APPLICABLE", "NOT-APPLICABLE", "SUPERSEDED"] }
+        },
+        "additionalProperties": false
+      }
+    },
+    "extensions": { "$ref": "shared.schema.json#/$defs/extensions" }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/aramsmith/agentic-architecture-v2/schemas/aff/1.1.0/architecture-catalogue.schema.json",
+  "title": "AFF architecture catalogue 1.1.0",
+  "type": "object",
+  "required": ["schemaVersion", "recordType", "caseName", "artifactPrefix", "revision", "requirementsRevision", "buildingBlocks", "views", "decisions"],
+  "properties": {
+    "schemaVersion": { "$ref": "shared.schema.json#/$defs/schemaVersion" },
+    "recordType": { "const": "architecture-catalogue" },
+    "caseName": { "$ref": "shared.schema.json#/$defs/caseName" },
+    "artifactPrefix": { "$ref": "shared.schema.json#/$defs/artifactPrefix" },
+    "revision": { "type": "string", "minLength": 1 },
+    "requirementsRevision": { "type": "string", "minLength": 1 },
+    "buildingBlocks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/traceableElement" }
+    },
+    "views": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/traceableElement" }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "requirements", "rationale", "alternatives", "risks", "implications", "status", "humanDecisionEvidence"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 },
+          "requirements": { "type": "array", "items": { "type": "string" }, "minItems": 1, "uniqueItems": true },
+          "rationale": { "type": "string", "minLength": 1 },
+          "alternatives": { "type": "array", "items": { "type": "string" } },
+          "risks": { "type": "array", "items": { "type": "string" } },
+          "implications": { "type": "array", "items": { "type": "string" } },
+          "status": { "type": "string", "minLength": 1 },
+          "humanDecisionEvidence": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "extensions": { "$ref": "shared.schema.json#/$defs/extensions" }
+  },
+  "$defs": {
+    "traceableElement": {
+      "type": "object",
+      "required": ["id", "name", "requirements"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "domain": { "type": "string" },
+        "concern": { "type": "string" },
+        "requirements": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,8 +1,8 @@
 # AFF data contracts and validation
 
-AFF contract version `1.0.0` turns the operating rules into deterministic JSON Schema Draft 2020-12
-records. The schema catalogue is `schemas/aff/catalogue.json`; versioned schemas are beneath
-`schemas/aff/1.0.0/`.
+AFF contracts turn the operating rules into deterministic JSON Schema Draft 2020-12 records.
+The schema catalogue is `schemas/aff/catalogue.json`. It supports `1.0.0` and `1.1.0`, with separate
+schema directories and `1.1.0` as the default for new cases.
 
 ## Version policy
 
@@ -15,6 +15,28 @@ records. The schema catalogue is `schemas/aff/catalogue.json`; versioned schemas
   additions belong in the open `extensions` object.
 - The lifecycle's existing `version` describes lifecycle content. `schemaVersion` describes its data
   shape; the two versions are independent.
+- Catalogue entries are keyed by `schemaVersion` and `recordType`. A failed old-version record is never
+  retried against a newer schema.
+- Existing cases keep `1.0.0`; new cases use `1.1.0`. Do not mix versions within a case or rewrite old
+  evidence to upgrade it. The repository lifecycle manifest is outside the case and retains its own
+  `1.0.0` data shape.
+
+## Host and model policy
+
+Legacy `1.0.0` cases use GitHub Copilot and GPT models. Contract `1.1.0` requires `host` on the model
+plan and every run-journal event: `github-copilot` or `claude-code`. The first event establishes the host;
+the model plan and all later events must agree. Host changes within a case are rejected.
+
+The selected host determines default models. Copilot uses the lifecycle manifest. Claude uses the
+validated `.claude/agents/*.md` wrappers. This rollout permits GPT assignments on Copilot and Claude
+assignments on Claude Code. A change from that host's default requires a human decision reference.
+AFF-A must remain on a different model from every phase owner, and each reviewer record must match its
+case assignment. A valid model-name prefix does not prove availability or runtime identity.
+
+Case validation and rendering remain offline and do not require an installed host CLI. They check
+record consistency, not the identity of the executing process. Live qualification and observed model
+evidence are separate requirements. See [Claude Code](claude-code.md) and the
+[compatibility note](migrations/1.0.0-to-1.1.0.md).
 
 ## Install and run
 
@@ -77,7 +99,7 @@ agent behaviour. For every phase that has a human approval, an `ARTIFACTS-RECORD
 A phase therefore cannot be entered, evidenced, or approved before its predecessor is approved.
 
 Phases 7 and 8 additionally declare `scoped-attempt-authorisation`, `scoped-test-attempt-authorisation`,
-and `phase-7-succeeded`. These have no catalogued record type in contract `1.0.0`, so the validator
+and `phase-7-succeeded`. These have no catalogued record type in contracts `1.0.0` or `1.1.0`, so the validator
 cannot verify them and **fails closed**: entering Phase 7 or Phase 8 reports a `phase-sequence` error
 until the prerequisite is either catalogued as a case record or removed from
 `.github/agents/AFF-LIFECYCLE.json`.

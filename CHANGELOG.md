@@ -5,6 +5,28 @@ All notable user-visible changes are recorded here. Versions follow the separate
 
 ## [Unreleased]
 
+### Added
+
+- Optional Claude Code packaging over the authoritative AFF profiles, with strict wrapper, tool,
+  model-separation, and MCP configuration checks. Based on
+  [JanvandenBrand's adapter contribution](https://github.com/JanvandenBrand/agentic-architecture-v2/tree/242ee17719e9d4bc7daa608004cc3d6118d60b00).
+- Schema contract `1.1.0` alongside unchanged `1.0.0`, exact version/type selection, and a fixed host
+  recorded by each new case's model plan and journal.
+- Offline compatibility journeys for legacy Copilot, new-contract Copilot, and new-contract Claude.
+- A documented Claude interview relay: AFF-1 authors questions and records decisions; AFF-0 passes
+  questions and human answers unchanged.
+
+### Changed
+
+- Tool package `1.2.0` and lifecycle `2.1.0` add host compatibility without replacing existing Copilot
+  defaults, workflow phases, or signed evidence.
+- Repository validation discovers every test and runs on Windows and Ubuntu behind the stable
+  `Repository validation` check.
+- Live Claude behaviour remains explicitly unqualified until a human-authorised host qualification
+  passes. Offline model labels are synthetic evidence, not proof of live model execution.
+
+Existing cases need no conversion. See the [compatibility note](docs/migrations/1.0.0-to-1.1.0.md).
+
 ## [1.1.0] - 2026-09-04
 
 ### Added

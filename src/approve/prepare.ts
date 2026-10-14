@@ -3,7 +3,7 @@ import path from "node:path";
 
 import writeFileAtomic from "write-file-atomic";
 
-import { validateLoadedCase } from "../case/index.js";
+import { resolveCasePolicy, validateLoadedCase } from "../case/index.js";
 import { resolveCasePath } from "../case/path.js";
 import { loadCaseRecords } from "../case/records.js";
 import {
@@ -22,8 +22,10 @@ import {
   readIdentity,
 } from "../identity/keys.js";
 import { signApproval } from "../identity/signature.js";
+import type { ContractVersion } from "../schema/catalogue.js";
 
 export interface ApprovalContext {
+  schemaVersion: ContractVersion;
   caseRoot: string;
   caseName: string;
   artifactPrefix: string;
@@ -116,6 +118,13 @@ export async function prepareApproval(options: {
   const caseRoot = resolved.caseRoot;
 
   const loaded = await loadCaseRecords(options.repositoryRoot, caseRoot);
+  const resolvedPolicy = resolveCasePolicy(loaded.records);
+  if (!resolvedPolicy.policy) {
+    throw new ApproveError(
+      resolvedPolicy.errors[0]?.message ?? "The case policy cannot be resolved.",
+      "Resolve the case contract version and host before recording a decision.",
+    );
+  }
   const validation = await validateLoadedCase(
     options.repositoryRoot,
     caseRoot,
@@ -209,6 +218,7 @@ export async function prepareApproval(options: {
   }
 
   return {
+    schemaVersion: resolvedPolicy.policy.schemaVersion,
     caseRoot,
     caseName: path.basename(caseRoot),
     artifactPrefix: candidate.artifactPrefix,
@@ -246,7 +256,7 @@ export async function recordSignedDecision(options: {
   const encryptedPrivateKey = await readEncryptedPrivateKey(options.home);
 
   const record: Record<string, unknown> = {
-    schemaVersion: "1.0.0",
+    schemaVersion: context.schemaVersion,
     recordType: "human-approval",
     caseName: context.caseName,
     artifactPrefix: context.artifactPrefix,

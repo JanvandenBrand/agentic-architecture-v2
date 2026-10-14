@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/aramsmith/agentic-architecture-v2/schemas/aff/1.1.0/human-approval.schema.json",
+  "title": "AFF human approval 1.1.0",
+  "type": "object",
+  "required": ["schemaVersion", "recordType", "caseName", "artifactPrefix", "phaseId", "artifactHashes", "reviewRecords", "decision", "approver", "decidedAt"],
+  "properties": {
+    "schemaVersion": { "$ref": "shared.schema.json#/$defs/schemaVersion" },
+    "recordType": { "const": "human-approval" },
+    "caseName": { "$ref": "shared.schema.json#/$defs/caseName" },
+    "artifactPrefix": { "$ref": "shared.schema.json#/$defs/artifactPrefix" },
+    "phaseId": { "$ref": "shared.schema.json#/$defs/phaseId" },
+    "artifactHashes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "shared.schema.json#/$defs/artifactBinding" }
+    },
+    "reviewRecords": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": { "$ref": "shared.schema.json#/$defs/artifactBinding" }
+    },
+    "decision": { "enum": ["APPROVED", "REJECTED"] },
+    "approver": { "type": "string", "minLength": 1 },
+    "decidedAt": { "type": "string", "format": "date-time" },
+    "residualGapAcceptance": { "type": "array", "items": { "type": "string" } },
+    "extensions": { "$ref": "shared.schema.json#/$defs/extensions" }
+  },
+  "additionalProperties": false
+}

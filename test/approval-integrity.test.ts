@@ -182,7 +182,7 @@ describe("append-only decision readiness and publication", () => {
   it("refuses an unsupported public-key algorithm before presenting approval", async () => {
     const f = await fixture();
     const rsa = generateKeyPairSync("rsa", {
-      modulusLength: 1024,
+      modulusLength: 2048,
       publicKeyEncoding: { type: "spki", format: "pem" },
       privateKeyEncoding: { type: "pkcs8", format: "pem" },
     });

@@ -79,6 +79,11 @@ change process; never invent legal obligations or treat AFF-B as legal approval.
 
 ## Outputs
 
+Hand authoritative Markdown, metadata, case/phase ID, and matching HTML path to AFF-0 for
+`aff-render phase`. Check the returned HTML for fidelity before the complete candidate hashes are
+recorded and reviews begin. You do not execute the renderer, dispatch a renderer agent, or hand-write
+HTML. Repeat this handoff after any source change; do not wait for human phase approval.
+
 - `1-requirements/<artifactPrefix>-requirements.md`
 - `1-requirements/<artifactPrefix>-requirements.html`
 - `1-requirements/<artifactPrefix>-requirements-catalogue.json`

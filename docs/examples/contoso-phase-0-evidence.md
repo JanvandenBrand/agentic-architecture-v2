@@ -42,7 +42,7 @@ No requirement is baselined by this harness. The human interview must supply and
 - `solution-overview.html` — journal-derived cumulative view showing synthetic approval and Phase 1 entry.
 - `smoke-report.json` — machine-readable evidence of the offline boundary and passed assertions.
 
-The generation run passed 24 executable assertions, made 0 live model calls, and performed 0 Azure actions.
+The generation run passed 24 assertions: 17 checks of generated evidence and 7 policy-declaration checks. The model/Azure counters are zero by construction, not measured live-host activity.
 
 ## Regenerate and inspect
 

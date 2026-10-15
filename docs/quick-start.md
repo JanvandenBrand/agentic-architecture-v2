@@ -56,6 +56,8 @@ Node.js 24) but are not automated by this repository.
 - Framework validation reports no errors.
 - The smoke command reports that all executable assertions passed.
 - `liveModelCalls` and `azureActions` are both `0`.
+- `counterBasis` is `by-construction`: these values describe an offline harness, not monitored live
+  calls. `assertionBasis` separates generated-evidence checks from policy-declaration checks.
 - `syntheticApproval` is `true`, and the report says the approval is synthetic test evidence.
 - `routeReady` is `AFF-1`, but no requirement has been baselined.
 - The retained `solution-overview.html` opens locally and labels the approval as synthetic, not human.
@@ -73,6 +75,10 @@ See the committed [representative evidence snapshot](examples/contoso-phase-0-ev
 retaining output if you only need to understand the result.
 
 ## 2. Optional GitHub Copilot agent trial
+
+Use readable Markdown/text for the trial. Binary formats need human-reviewed conversion, retained
+originals, and provenance/loss notes; no converter is bundled. The approval command requires an
+identity created by the human outside any agent session. Offline evaluation does not require one.
 
 This step is separate because it makes a live model call and requires GitHub Copilot access plus the
 declared models.

@@ -80,6 +80,10 @@ Do not use GitHub OIDC or stored credentials.
 
 ## Outputs
 
+Before recording candidate hashes, use the render-case-html skill or hand case/phase ID, authoritative
+Markdown, metadata, and matching HTML path to AFF-0 for `aff-render phase`. Check fidelity and include
+the resulting phase HTML in the candidate. Repeat after source changes, before review and human approval.
+
 - `5-coding/<artifactPrefix>-build-report.md`
 - `5-coding/<artifactPrefix>-build-report.html`
 - `5-coding/<artifactPrefix>-release-manifest.json`

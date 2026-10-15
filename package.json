@@ -1,6 +1,6 @@
 {
   "name": "aff-contract-validator",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
@@ -14,10 +14,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "test:contracts": "vitest run test/schema.test.ts test/framework.test.ts test/case.test.ts test/case-host.test.ts test/sequence.test.ts test/approval-mode.test.ts test/identity.test.ts",
+    "test:contracts": "vitest run test/schema.test.ts test/framework.test.ts test/case.test.ts test/case-host.test.ts test/sequence.test.ts test/approval-mode.test.ts test/identity.test.ts test/approval-integrity.test.ts test/artifact-loading.test.ts",
     "test:governance": "vitest run test/repository-governance.test.ts",
     "test:adoption": "vitest run test/adoption.test.ts",
-    "test:renderer": "vitest run test/render.test.ts test/render-cli.test.ts",
+    "test:renderer": "vitest run test/render.test.ts test/render-cli.test.ts test/review-render.test.ts",
     "test:smoke": "vitest run test/smoke-contoso.test.ts test/host-compatibility.test.ts",
     "test:hosts": "vitest run test/claude-adapter.test.ts test/case-host.test.ts test/host-compatibility.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",

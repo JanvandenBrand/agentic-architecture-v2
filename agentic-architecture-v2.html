@@ -461,6 +461,8 @@ footer.page p+p{margin-top:.7rem}
         <p>The framework validates, every offline assertion passes, and the report records
         <strong>zero live model calls</strong> and zero Azure actions. The generated overview labels its
         approval as synthetic test evidence — because no human made it.</p>
+        <p>The zero counters describe this harness by construction, not monitored live calls.
+        Generated-evidence checks and policy-declaration checks are reported separately.</p>
         <span class="note safe"><strong>Safe stop point.</strong> This proves internal consistency. It
         does not prove model quality, Azure access, deployment, runtime behaviour, or real human
         approval.</span>
@@ -470,15 +472,16 @@ footer.page p+p{margin-top:.7rem}
         <div class="step-head"><span class="step-num">02</span><h3>Create your approval identity</h3><span class="when">Once, ever</span></div>
         <span class="note warn"><strong>Why this exists.</strong> An agent has write access to your case
         folder. Without a key, nothing distinguishes a decision you made from a JSON file an agent wrote
-        — both look like a valid approval. The key gives you something an agent cannot produce.</span>
+        — both can look like an approval. Verify your initial case fingerprint and keep the private
+        key and passphrase under your control.</span>
         <p>This is the key that signs every phase decision you make.</p>
 <pre><code><span class="prompt">&gt;</span> npm run identity:create</code></pre>
         <p>You choose a <strong>label</strong> — a role such as <code>Accountable architect</code> keeps a
         personal name out of case folders — and a <strong>passphrase</strong>. The passphrase is never
-        written to disk and cannot be recovered. It is the one secret an agent sharing your machine
-        cannot read.</p>
-        <p>Creating the key also switches on a policy for this machine: a real human decision must be
-        signed. Skip this stage and approvals still work, but they read <code>self-asserted</code>.</p>
+        stored by AFF and cannot be recovered. Never share it with an agent.</p>
+        <p>The approval command requires an identity. Without one, offline evaluation still works and
+        the validator can read permitted legacy <code>self-asserted</code> records, but the command
+        cannot create a new decision.</p>
       </article>
 
       <article class="step">

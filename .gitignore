@@ -17,4 +17,7 @@ node_modules/
 dist/
 _site/
 .aff-smoke/
+.test-output/
+.artifact-loading-*/
+.review-render-test-*/
 *.log

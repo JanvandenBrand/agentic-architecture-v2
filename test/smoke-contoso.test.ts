@@ -111,6 +111,19 @@ describe("offline Contoso smoke journey", () => {
     expect(canonicalTextBytes(crlf).byteLength).toBe(lf.byteLength);
   });
 
+  it.each([
+    ["aff-a", "md"], ["aff-a", "html"], ["aff-b", "md"], ["aff-b", "html"],
+  ])("rejects a missing %s review %s artifact", async (reviewer, extension) => {
+    const workspace = await createSmokeWorkspace();
+    await rm(path.join(
+      workspace, "cases", "contoso-permit-services", "reviews",
+      reviewer, "0", "round-1", `contoso-${reviewer}-review.${extension}`,
+    ));
+    await expect(verifyContosoSmokeWorkspace(workspace)).rejects.toThrow(
+      "Each phase produces compact Markdown and self-contained HTML",
+    );
+  });
+
   it("proves Phase 0 through the first Phase 1 question without live execution", async () => {
     const retainedOutput = await mkdtemp(path.join(tmpdir(), "aff-contoso-output-"));
     temporaryDirectories.push(retainedOutput);
@@ -132,6 +145,14 @@ describe("offline Contoso smoke journey", () => {
     expect(result.boundary).toMatch(/offline contract\/smoke harness/u);
     expect(result.liveModelCalls).toBe(0);
     expect(result.azureActions).toBe(0);
+    expect(result.counterBasis).toBe("by-construction");
+    expect(result.assertionBasis).toEqual({
+      generatedEvidence: 17,
+      policyDeclarations: 7,
+    });
+    expect(result.assertionsPassed).toBe(
+      result.assertionBasis.generatedEvidence + result.assertionBasis.policyDeclarations,
+    );
     expect(result.questionsEmitted).toHaveLength(1);
     expect(result.requirementsBaselined).toEqual([]);
     expect(result.routeReady).toBe("AFF-1");
@@ -150,6 +171,11 @@ describe("offline Contoso smoke journey", () => {
         "utf8",
       ),
     ).toContain("Diagram shown as escaped Mermaid source");
+    for (const reviewer of ["aff-a", "aff-b"]) {
+      const reviewBase = path.join(caseRoot, "reviews", reviewer, "0", "round-1", `contoso-${reviewer}-review`);
+      expect(await readFile(`${reviewBase}.md`, "utf8")).toContain("Synthetic offline review record");
+      expect(await readFile(`${reviewBase}.html`, "utf8")).toContain("script-src 'none'");
+    }
     const overview = await readFile(
       path.join(caseRoot, "solution-overview.html"),
       "utf8",

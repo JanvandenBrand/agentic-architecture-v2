@@ -15,9 +15,11 @@ import {
   resolveApprovalMode,
 } from "../case/approval-mode.js";
 import { validateRecordIdentity } from "../case/identity.js";
-import { loadCaseRecords, type LoadedRecord } from "../case/records.js";
+import { isCataloguedRecordPath, loadCaseRecords, type LoadedRecord } from "../case/records.js";
+import { validateModelPlans, validateModelProviders, validateReviewModels } from "../case/models.js";
 import {
   allReviews,
+  asReview,
   asApproval,
   bindingSet,
   latestCandidateEvents,
@@ -35,9 +37,11 @@ import {
 } from "../case/path.js";
 import { isRecord } from "../common/json.js";
 import { readLifecycle } from "../framework/lifecycle.js";
+import { readHostModelDefaults } from "../framework/hosts.js";
 import {
   createSchemaRegistry,
   validateRecordSchema,
+  type SchemaRegistry,
 } from "../schema/validator.js";
 
 const MAX_MARKDOWN_BYTES = 1_048_576;
@@ -66,6 +70,18 @@ export interface RenderOverviewOptions {
   repositoryRoot: string;
   casePath: string;
   outputPath?: string;
+}
+
+export interface RenderReviewOptions {
+  repositoryRoot: string;
+  casePath: string;
+  phaseId: string;
+  reviewer: "AFF-A" | "AFF-B";
+  round: number;
+  sourcePath: string;
+  metadataPath: string;
+  outputPath: string;
+  requireVisualDiagrams?: boolean;
 }
 
 interface SourceBinding {
@@ -854,26 +870,27 @@ export async function renderPhaseHtml(
       sha256: hashArtifactBytes(source.absolutePath, markdownBytes),
     },
   ];
-  const metadataRecords = [];
-  const metadataPaths =
-    options.metadataPaths.length > 0
-      ? [...options.metadataPaths].sort()
-      : (await readdir(path.dirname(source.absolutePath)))
-          .filter((file) => file.endsWith(".json"))
-          .sort()
-          .map((file) => `${phaseFolder}/${file}`);
-  if (metadataPaths.length === 0) {
-    throw new RenderError(
-      "Phase rendering requires at least one authoritative structured metadata record.",
-      "Create the phase catalogue or Phase 0 inventory/model plan and pass it with --metadata.",
-    );
-  }
+  const metadataRecords: LoadedRecord[] = [];
   const repositoryRoot = path.resolve(options.caseRoot, "..", "..");
   const registry = await createSchemaRegistry(repositoryRoot);
   if (registry.errors.length > 0) {
     throw new RenderError(
       registry.errors[0]?.message ?? "Schema registry validation failed.",
       registry.errors[0]?.remediation ?? "Restore the versioned AFF schema catalogue.",
+    );
+  }
+  const metadataPaths =
+    options.metadataPaths.length > 0
+      ? [...options.metadataPaths].sort()
+      : (await readdir(path.dirname(source.absolutePath)))
+          .filter((file) => file.endsWith(".json") &&
+            isCataloguedRecordPath(registry, `${phaseFolder}/${file}`))
+          .sort()
+          .map((file) => `${phaseFolder}/${file}`);
+  if (metadataPaths.length === 0) {
+    throw new RenderError(
+      "Phase rendering requires at least one authoritative structured metadata record.",
+      "Create the phase catalogue or Phase 0 inventory/model plan and pass it with --metadata.",
     );
   }
   for (const metadataPath of metadataPaths) {
@@ -945,16 +962,23 @@ export async function renderPhaseHtml(
       sha256: hashArtifactBytes(metadata.absolutePath, metadataBytes),
     });
   }
+  const identityRecords = options.phaseId === "0"
+    ? metadataRecords
+    : [
+        ...(await readIdentityAnchors(registry, options.caseRoot))
+          .filter(({ file }) => !metadataRecords.some((record) => record.file === file)),
+        ...metadataRecords,
+      ];
   // Phase metadata may exist before a model plan, journal, reviews, or approval.
   // Check the supplied contract without imposing the completed-case gates.
-  if (new Set(metadataRecords.map(({ value }) => value.schemaVersion)).size > 1) {
+  if (new Set(identityRecords.map(({ value }) => value.schemaVersion)).size > 1) {
     throw new RenderError(
       "Renderer metadata mixes AFF record schema versions.",
       "Use the case's original contract version for every metadata record.",
     );
   }
-  if (metadataRecords.some(({ value }) => value.recordType === "model-plan")) {
-    const policy = resolveCasePolicy(metadataRecords);
+  if (identityRecords.some(({ value }) => value.recordType === "model-plan")) {
+    const policy = resolveCasePolicy(identityRecords);
     if (policy.errors.length > 0) {
       throw new RenderError(
         policy.errors[0]!.message,
@@ -975,7 +999,7 @@ export async function renderPhaseHtml(
   }
   const identityErrors = validateRecordIdentity(
     options.caseRoot,
-    metadataRecords,
+    identityRecords,
   );
   if (identityErrors.length > 0) {
     throw new RenderError(
@@ -1032,6 +1056,171 @@ export async function renderPhaseHtml(
     encoding: "utf8",
     fsync: true,
   });
+}
+
+async function readRenderRecord(
+  registry: SchemaRegistry,
+  caseRoot: string,
+  file: string,
+  recordType: string,
+): Promise<LoadedRecord> {
+  const resolved = await resolveContainedCaseFile(caseRoot, file, "Renderer metadata");
+  if (!resolved.absolutePath) {
+    throw new RenderError(
+      resolved.error!.message,
+      resolved.error!.remediation,
+    );
+  }
+  const bytes = await readLimitedBytes(resolved.absolutePath, MAX_METADATA_BYTES, file);
+  let value: unknown;
+  try {
+    value = JSON.parse(decodeUtf8(bytes, file));
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) {
+      throw error;
+    }
+    throw new RenderError(
+      `Renderer metadata "${file}" is not valid JSON: ${error.message}`,
+      "Correct the authoritative JSON before rendering.",
+    );
+  }
+  const errors = validateRecordSchema(registry, file, value, recordType);
+  if (errors.length > 0 || !isRecord(value)) {
+    throw new RenderError(
+      errors[0]?.message ?? `Renderer metadata "${file}" must be an AFF object.`,
+      errors[0]?.remediation ?? "Supply the contracted authoritative record.",
+    );
+  }
+  return {
+    file,
+    absolutePath: resolved.absolutePath,
+    snapshotSha256: hashArtifactBytes(resolved.absolutePath, bytes),
+    value,
+  };
+}
+
+async function readIdentityAnchors(
+  registry: SchemaRegistry,
+  caseRoot: string,
+): Promise<LoadedRecord[]> {
+  let files: string[];
+  try {
+    files = await readdir(path.join(caseRoot, "0-coordination"));
+  } catch (error: unknown) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return [];
+    }
+    throw error;
+  }
+  const records: LoadedRecord[] = [];
+  for (const file of files.sort()) {
+    const recordType = file.endsWith("-model-plan.json") ? "model-plan"
+      : file.endsWith("-input-inventory.json") ? "input-inventory" : undefined;
+    if (recordType) {
+      records.push(await readRenderRecord(registry, caseRoot, `0-coordination/${file}`, recordType));
+    }
+  }
+  return records;
+}
+
+export async function renderReviewHtml(options: RenderReviewOptions): Promise<void> {
+  const resolved = await resolveCasePath(options.repositoryRoot, options.casePath);
+  if (!resolved.caseRoot) {
+    throw new RenderError(resolved.errors[0]!.message, resolved.errors[0]!.remediation);
+  }
+  const caseRoot = resolved.caseRoot;
+  const registry = await createSchemaRegistry(options.repositoryRoot);
+  if (registry.errors.length > 0) {
+    throw new RenderError(registry.errors[0]!.message, registry.errors[0]!.remediation);
+  }
+  const sourcePath = options.sourcePath.split(path.sep).join("/");
+  const metadataPath = options.metadataPath.split(path.sep).join("/");
+  const outputPath = options.outputPath.split(path.sep).join("/");
+  const record = await readRenderRecord(registry, caseRoot, metadataPath, "review-record");
+  const review = asReview(record);
+  const prefix = record.value.artifactPrefix;
+  const basename = `reviews/${options.reviewer.toLowerCase()}/${options.phaseId}/round-${options.round}/${String(prefix)}-${options.reviewer.toLowerCase()}-review`;
+  if (
+    !review ||
+    !Number.isSafeInteger(options.round) ||
+    !phaseFolders[options.phaseId] ||
+    review.reviewer !== options.reviewer ||
+    review.phaseId !== options.phaseId ||
+    review.round !== options.round ||
+    sourcePath !== `${basename}.md` ||
+    metadataPath !== `${basename}.json` ||
+    outputPath !== `${basename}.html`
+  ) {
+    throw new RenderError(
+      "Review source, metadata and output must match the contracted reviewer, phase, round, prefix and basename.",
+      "Use reviews/<aff-a|aff-b>/<phase-id>/round-<n>/<artifactPrefix>-<aff-a|aff-b>-review.{md,json,html}.",
+    );
+  }
+  const source = await resolveContainedCaseFile(caseRoot, sourcePath, "Authoritative review Markdown");
+  const output = await resolveContainedOutputPath(caseRoot, outputPath);
+  if (!source.absolutePath || !output.absolutePath) {
+    const error = source.error ?? output.error!;
+    throw new RenderError(error.message, error.remediation);
+  }
+  const plan = await readRenderRecord(
+    registry, caseRoot, `0-coordination/${String(prefix)}-model-plan.json`, "model-plan",
+  );
+  const anchors = await readIdentityAnchors(registry, caseRoot);
+  const records = [plan, ...anchors.filter(({ file }) => file !== plan.file), record];
+  const policy = resolveCasePolicy(records);
+  if (!policy.policy) {
+    throw new RenderError(policy.errors[0]!.message, policy.errors[0]!.remediation);
+  }
+  const lifecycle = await readLifecycle(options.repositoryRoot);
+  const defaults = await readHostModelDefaults(options.repositoryRoot, policy.policy.host, lifecycle);
+  const errors = [
+    ...defaults.errors,
+    ...validateRecordIdentity(caseRoot, records),
+    ...validateModelProviders(records, policy.policy.host),
+    ...validateModelPlans(records, lifecycle, defaults.models),
+    ...validateReviewModels(records, lifecycle, defaults.models),
+  ];
+  if (errors.length > 0) {
+    throw new RenderError(errors[0]!.message, errors[0]!.remediation);
+  }
+  if (review.subjectArtifacts.some(({ path: file }) =>
+    [sourcePath, metadataPath, outputPath].includes(file.split(path.sep).join("/")))) {
+    throw new RenderError(
+      "A review cannot bind its own Markdown, JSON or generated HTML as a subject artifact.",
+      "Bind the phase candidate; render the review afterwards without a circular review hash.",
+    );
+  }
+  const hashErrors = await validateHashBindings(caseRoot, records);
+  if (hashErrors.length > 0) {
+    throw new RenderError(hashErrors[0]!.message, hashErrors[0]!.remediation);
+  }
+  const bytes = await readLimitedBytes(source.absolutePath, MAX_MARKDOWN_BYTES, sourcePath);
+  const markdown = decodeUtf8(bytes, sourcePath);
+  const bindings: SourceBinding[] = [
+    { path: sourcePath, sha256: hashArtifactBytes(source.absolutePath, bytes) },
+    { path: metadataPath, sha256: record.snapshotSha256 },
+    { path: plan.file, sha256: plan.snapshotSha256 },
+  ];
+  const ids = createIdAllocator();
+  const mainContentId = ids.allocate("main-content");
+  const rendered = await renderMarkdown(
+    caseRoot, sourcePath, outputPath, options.phaseId, markdown,
+    options.requireVisualDiagrams ?? false, ids,
+  );
+  const title = `${review.reviewer} — Phase ${review.phaseId} — Round ${review.round}`;
+  const html = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8">${contentSecurityPolicyMeta(false)}<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="generator" content="aff-render"><meta name="aff-source-sha256" content="${bindings[0]!.sha256}"><title>${escapeHtml(title)}</title><style>${styles}</style></head>
+<body><a class="skip-link" href="#${mainContentId}">Skip to main content</a><header><p>AFF generated review view</p><p class="document-title">${escapeHtml(title)}</p>${renderBindings(bindings)}<p>Reviewer verdict: ${escapeHtml(review.verdict)}. Final: ${review.final ? "yes" : "no"}. This generated view is not human approval or proof of reviewer convergence.</p></header>
+<main id="${mainContentId}"><article aria-label="${escapeHtml(title)}">${rendered.body}<details><summary>Authoritative structured review record</summary><pre><code>${escapeHtml(JSON.stringify(record.value, null, 2))}</code></pre></details></article>${renderToc(rendered.toc)}</main>
+<footer>Generated from authoritative review Markdown and JSON, without changing either source.</footer></body></html>
+`;
+  if (Buffer.byteLength(html, "utf8") > MAX_OUTPUT_BYTES) {
+    throw new RenderError(
+      `Rendered HTML exceeds the ${MAX_OUTPUT_BYTES}-byte output limit.`,
+      "Link large evidence instead of embedding it.",
+    );
+  }
+  await writeFileAtomic(output.absolutePath, html, { encoding: "utf8", fsync: true });
 }
 
 function journalEvents(records: LoadedRecord[]): LoadedRecord[] {

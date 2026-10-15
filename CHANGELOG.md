@@ -5,6 +5,43 @@ All notable user-visible changes are recorded here. Versions follow the separate
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-15
+
+### Fixed
+
+- Preserve each signed phase decision in its own file with exclusive publication instead of
+  overwriting earlier decisions.
+- Check decision readiness before signing; blocked reviewer verdicts and uncatalogued optional-phase
+  authorisations do not become valid by collecting a signature.
+- Derive approval-key identity from verified signature data and require verifiable predecessor-key
+  authorisation for rotation; redundant fingerprint claims cannot bypass continuity.
+- Validate entry and candidate chronology against historical prerequisite decisions and reopening
+  events rather than accepting an approval added afterwards.
+- Treat ordinary application/domain JSON as covered artifacts, retain misplaced AFF-record checks,
+  and report malformed journal or encoding errors with actionable file diagnostics.
+- Make case-prefix diagnostics independent of filesystem traversal order.
+
+### Added
+
+- Deterministic reviewer HTML rendering and an explicit AFF-0 rendering handoff for reviewers and
+  phase owners that cannot execute commands. Reviewer tool grants remain unchanged.
+- Regression coverage for immutable publication, signing readiness, key continuity, artifact loading,
+  chronology, and reviewer rendering.
+
+### Changed
+
+- Tool package `1.3.0` and lifecycle `2.2.0`; schema contracts `1.0.0` and `1.1.0` are unchanged.
+- Clarify mandatory CLI signing identity, human-reviewed binary-input conversion, initial-key trust,
+  declared host permissions, and the difference between generated-evidence and policy-declaration
+  smoke assertions. Zero model/Azure counters are by construction, not runtime measurements.
+- Previously accepted invalid chronology and unverified rotation claims now fail closed. Do not edit
+  old evidence to bypass a failure; see [tool upgrade guidance](docs/migrations/tool-1.2.0-to-1.3.0.md).
+
+Live-host qualification and phase 7/8 authorisation contracts remain separate gates. This version
+entry does not create a Git tag or published release.
+
+## [1.2.0] - 2026-10-14
+
 ### Added
 
 - Optional Claude Code packaging over the authoritative AFF profiles, with strict wrapper, tool,

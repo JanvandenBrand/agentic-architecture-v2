@@ -1,4 +1,6 @@
 import type { ValidationError } from "../types.js";
+import { isRecord } from "../common/json.js";
+import { readSignature, verifyKeyTransition } from "../identity/signature.js";
 import type { LoadedRecord } from "./records.js";
 import { asApproval, type Approval } from "./review-records.js";
 
@@ -54,6 +56,35 @@ export function validateApprovalModes(
   options: ApprovalModeOptions = {},
 ): ValidationError[] {
   const errors: ValidationError[] = [];
+
+  for (const record of records) {
+    const approval = asApproval(record);
+    if (!approval || !isRecord(record.value.extensions)) continue;
+    const extensions = record.value.extensions;
+    if ("signature" in extensions && !approval.signatureVerified &&
+        approval.claimedMode !== "human-verified") {
+      errors.push({
+        file: record.file, invariant,
+        message: "The recorded approval signature is malformed or does not verify.",
+        remediation: "Preserve historical evidence and investigate the failed signature; do not downgrade its assurance claim.",
+      });
+    }
+    if (approval.signatureVerified && "keyFingerprint" in extensions &&
+        extensions.keyFingerprint !== approval.keyFingerprint) {
+      errors.push({
+        file: record.file, invariant,
+        message: "The redundant key fingerprint does not match the verified signature identity.",
+        remediation: "Use the signature-derived identity; do not rewrite signed historical metadata.",
+      });
+    }
+    if (!approval.signatureVerified && "keyRotation" in extensions) {
+      errors.push({
+        file: record.file, invariant,
+        message: "A key rotation requires a verified new-key decision and predecessor countersignature.",
+        remediation: "Do not treat rotation metadata or lost-key recovery claims as authority.",
+      });
+    }
+  }
 
   for (const approval of records
     .map(asApproval)
@@ -121,8 +152,10 @@ function validateSignatureContinuity(
 
   const errors: ValidationError[] = [];
   const anchor = signed[0];
-  const anchorFingerprint = anchor?.keyFingerprint;
   const firstSignedAt = anchor ? Date.parse(anchor.decidedAt) : 0;
+  let currentPublicKey: string | undefined;
+  let currentFingerprint: string | undefined;
+  const values = new Map(records.map(({ file, value }) => [file, value]));
 
   for (const approval of approvals) {
     if (!approval.signatureVerified) {
@@ -138,20 +171,23 @@ function validateSignatureContinuity(
       }
       continue;
     }
-    if (
-      anchorFingerprint &&
-      approval.keyFingerprint &&
-      approval.keyFingerprint !== anchorFingerprint &&
-      !approval.keyRotation
-    ) {
+    const value = values.get(approval.file)!;
+    const signature = readSignature(value)!;
+    if (isRecord(value.extensions) && "keyFingerprint" in value.extensions &&
+        value.extensions.keyFingerprint !== signature.keyFingerprint) continue;
+    const transition = verifyKeyTransition(value, signature.publicKeyPem, currentPublicKey);
+    if (!transition.verified) {
       errors.push({
         file: approval.file,
         invariant,
-        message: `This decision is signed by key ${approval.keyFingerprint}, but the case is anchored to ${anchorFingerprint}.`,
+        message: `This decision is signed by key ${signature.keyFingerprint}, but the case is anchored to ${currentFingerprint ?? "its original verified key"}: ${transition.reason}.`,
         remediation:
-          "Use the case's established approval key, or record an explicit key rotation in extensions.keyRotation naming the previous fingerprint and the reason.",
+          "Use the established key or its countersignature over this exact case decision and old/new keys. Lost-key recovery is not supported.",
       });
+      continue;
     }
+    currentPublicKey = signature.publicKeyPem;
+    currentFingerprint = signature.keyFingerprint;
   }
 
   return errors;

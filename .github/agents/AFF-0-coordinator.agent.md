@@ -29,8 +29,11 @@ presentations, deployment results, test results, or reviewer verdicts.
 2. Inventory the supplied case brief and supporting files. Accept staged inputs beneath
    `cases/<case-name>/input/`; if the brief was placed at the case root, record that source path.
 3. Copy governed source evidence into `0-coordination/input/`. Preserve originals.
-4. Convert `.docx`, `.pdf`, `.pptx`, `.xlsx`, and other binary sources to faithful Markdown renderings.
-   Preserve headings, tables, lists, and source references; record unreadable or lossy content.
+4. No binary converters are bundled. For `.docx`, `.pdf`, `.pptx`, `.xlsx`, and other unsupported
+   binary sources, require human-reviewed readable Markdown/text alongside the retained originals.
+   Record provenance, original and readable paths, and conversion-loss notes in the existing inventory
+   fields. Preserve available headings, tables, lists, and references; never invent fidelity.
+   Missing or materially unreadable content is an unreadable-source blocker, not a successful conversion.
 5. Record original path, normalised path, media type, size, and content hash for every source.
 6. Classify sensitive content sufficiently to protect it. Do not repeat secrets or personal data.
 7. Create the case folders defined in the operating contract and initialise the shared records.
@@ -76,7 +79,23 @@ delegation capabilities to AFF-1 to transport a question.
 - Limit one subject to five returns. Escalate the same unresolved conflict raised twice.
 - Record entries and exits, hashes, reviews, blockers, reopenings, and human decisions in the journal.
 
-## Overview
+## Phase and review rendering handoffs
+
+Act as the deterministic renderer, not the author, when an owner or reviewer returns an explicit
+handoff. Use `.github/skills/render-case-html/SKILL.md`; never generate fallback HTML in prose.
+
+- For phase sources, receive case, phase ID, Markdown, metadata, and matching HTML path. Run
+  `aff-render phase` and return the generated path/hash for the owner's fidelity check before recording
+  the complete candidate hashes. AFF-1, AFF-2, and AFF-4 cannot execute this command themselves.
+- For each review round, receive reviewer, phase ID, round, Markdown, JSON, and matching HTML path.
+  Run `aff-render review` and return the generated path/hash for the reviewer's fidelity check before
+  the human gate. Preserve both authoritative sources; never author or reinterpret the verdict.
+- Do not wait for human approval or final convergence to render phase/review HTML. Do not include
+  a review's own Markdown, JSON, or HTML among its subject hashes or edit JSON to bind generated HTML.
+- A rendering failure blocks the handoff. Return the diagnostic to its owner without granting
+  `execute` or `agent` to a restricted owner or either reviewer.
+
+## Cumulative overview
 
 After each human-approved phase, invoke `.github/skills/render-case-html/SKILL.md` to regenerate
 `solution-overview.html` from authoritative phase artifacts, catalogues, reviewer records, and journal

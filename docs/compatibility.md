@@ -17,12 +17,20 @@ accept a reproducible repository issue; it is not a service-level or vendor supp
 | Other IDE hosts | No blanket claim | **Not verified** | Use only if the host’s current official documentation supports the same repository locations and frontmatter. |
 | Declared models | Copilot defaults in the lifecycle manifest; Claude defaults in the checked wrappers | **Contractually checked**, not availability-tested | Exact model availability and observed runtime identity must be checked on the selected host. A model's self-description is not independent evidence. |
 | Model substitution | Human-approved replacement within the selected host's provider policy, recorded with `approvalReference` | **Supported with review** | A per-case choice does not rewrite repository defaults. AFF-A must differ from every phase owner. A silent fallback is not supported. |
-| AFF lifecycle | `2.1.0` | **Checked** by the lifecycle manifest and framework validator | Adds compatible host/model policy; phases, routes, owners, and safety boundaries are unchanged. |
+| AFF lifecycle | `2.2.0` | **Checked** by the lifecycle manifest and framework validator | Names AFF-0 as the rendering operator for restricted owners and reviewers; phase and review ownership remains unchanged. |
 | AFF schema contract | `1.1.0` default for new cases; `1.0.0` retained | **Checked** by `schemas/aff/catalogue.json` and JSON Schema tests | Exact version/type selection. One version and one host per case; no automatic migration or host switching. |
-| Validator/tool package | `1.2.0`, private package | **Checked** by `package.json` and `package-lock.json` | This is repository tooling metadata, not the lifecycle or schema version and not proof of a published npm package. |
+| Validator/tool package | `1.3.0`, private package | **Checked** by `package.json` and `package-lock.json` | Tightens approval and chronology checks without rewriting historical evidence; see the tool upgrade note. |
 | Renderer | Deterministic, self-contained HTML; contained local assets only; sanitised SVG; Mermaid shown as escaped source | **Verified** by renderer tests and the Contoso smoke | It does not execute Mermaid, remote scripts, or model-authored HTML. |
 | Azure | Not required for install, validation, rendering, or the Contoso smoke | **Verified boundary** | Only optional Phase 7/8 work needs Azure, case-specific authorisation, approved parameters, and organisation-approved identity. |
-| Human approval | `extensions.approvalMode` declares `synthetic`, `self-asserted`, or `human-verified`; the declaration must match the evidence | **Verified for record integrity and, when signed, for key custody** | A `human-verified` approval proves the record was signed by the case's approval key and is unchanged. A machine holding an approval key requires every real decision to be signed; a machine without one accepts `self-asserted`. Neither proves the passphrase holder acted unassisted. |
+| Human approval | `extensions.approvalMode` declares `synthetic`, `self-asserted`, or `human-verified`; the declaration must match the evidence | **Checked for record integrity and key continuity** | Verify the first case key's fingerprint independently. Signature checks do not prove personal identity or isolate the signing process from agents. The command requires a local identity; the validator can still read permitted unsigned legacy evidence. |
+
+Declared tool restrictions are not runtime attestation. Copilot profiles declare optional-phase
+invocation controls; Claude wrappers map allowed capabilities and rely on the shared human-invocation
+policy. Observe both hosts during qualification. The record validator refuses the still-uncatalogued
+phase 7/8 authorisations; that is not proof that a host cannot dispatch an agent.
+
+Binary-input conversion is not bundled. Supply human-reviewed Markdown/text with original-source
+provenance, or record an unreadable-source blocker.
 
 Official host references:
 
@@ -47,6 +55,8 @@ checks on the exact release commit. Offline synthetic tests do not qualify live 
   and a migration note.
 - Existing signed `1.0.0` evidence stays unchanged. An older tool that supports only `1.0.0` cannot
   continue a `1.1.0` case. See the [version compatibility note](migrations/1.0.0-to-1.1.0.md).
+- Tool `1.3.0` rejects some histories previously accepted by incomplete checks, including early phase
+  activity and unauthorised rotations. See [tool upgrade guidance](migrations/tool-1.2.0-to-1.3.0.md).
 - A lifecycle version describes the workflow contract. A package/tool version describes executable
   validator, renderer, smoke, and generator code. Neither silently changes the other.
 - Repository support never replaces GitHub, model-provider, Azure, legal, security, compliance, or

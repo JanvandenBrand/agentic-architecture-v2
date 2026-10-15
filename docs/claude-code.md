@@ -73,6 +73,9 @@ An unanswered material decision remains open; never invent an answer or human co
 
 Reviewer wrappers have no `Bash` or `Agent` grant. Their editing tools exist only for their own
 review records. MCP configuration must match the shared profiles.
+AFF-0 renders their review HTML from the authored Markdown and JSON, and renders phase HTML for
+owners that cannot execute commands. This operator role does not transfer authorship or review
+authority. See the [renderer commands](aff-renderer.md).
 
 Committed settings deny the approval and identity npm command patterns. These are safeguards, not
 an operating-system security boundary or proof that every alternative invocation is blocked.
@@ -84,6 +87,9 @@ request the passphrase, access the private key, or treat an unsigned/synthetic r
 human approval. Deployment and runtime testing retain their separate optional-phase gates.
 AFF-0 must never automatically dispatch AFF-7 or AFF-8. Both remain human-invocable only, and their
 currently uncatalogued pre-execution authorisations remain blocked.
+That record-level block does not prove the host cannot dispatch an optional agent. Copilot's
+declared invocation flags and Claude's current wrapper/prompt rules must each be checked in a live
+qualification; do not assume identical runtime enforcement.
 
 ## Live host qualification
 
@@ -99,6 +105,7 @@ Record a sanitised result for each check:
    self-report does not count as evidence.
 4. Effective reviewer tool and MCP grants, and the limits of the approval/identity denial patterns.
 5. An interview round trip, correction, cancellation, and restart with question IDs and answers preserved.
+   Include the AFF-0 rendering handoff for a restricted phase owner and both reviewer HTML records.
 6. Human-only approval outside the agent session, followed by successful validation, rendering, and resume.
 7. A representative Copilot journey confirming its unchanged defaults and interaction.
 

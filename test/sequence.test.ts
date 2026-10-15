@@ -1,4 +1,6 @@
 import path from "node:path";
+import { appendFile, cp, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
@@ -6,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import { readLifecycle } from "../src/framework/lifecycle.js";
 import type { LoadedRecord } from "../src/case/records.js";
 import { validatePhaseSequence } from "../src/case/sequence.js";
+import { validateCase } from "../src/case/index.js";
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -212,5 +215,117 @@ describe("phase sequence", () => {
     const manifest = await readLifecycle(repositoryRoot);
 
     expect(validatePhaseSequence([], manifest)).toEqual([]);
+  });
+
+  it.each(["PHASE-ENTERED", "ARTIFACTS-RECORDED"])(
+    "rejects early %s even when a later prerequisite approval exists",
+    async (eventType) => {
+      const manifest = await readLifecycle(repositoryRoot);
+      const errors = validatePhaseSequence([
+        approval("0", "2026-01-01T10:00:00Z"),
+        journalEvent("1", eventType, 2, { artifactHashes: binding }),
+        approval("1", "2026-01-01T11:00:00Z"),
+      ], manifest);
+      expect(messages(errors)).toContain("before");
+      expect(errors.some(({ file }) => file.includes("sample-run-journal.jsonl:2"))).toBe(true);
+    },
+  );
+
+  it("does not hide an invalid earlier candidate behind a newer candidate", async () => {
+    const manifest = await readLifecycle(repositoryRoot);
+    const errors = validatePhaseSequence([
+      approval("0", "2026-01-01T10:00:00Z"),
+      journalEvent("1", "ARTIFACTS-RECORDED", 2, { artifactHashes: binding }),
+      journalEvent("1", "ARTIFACTS-RECORDED", 3, {
+        timestamp: "2026-01-01T11:00:00Z", artifactHashes: binding,
+      }),
+    ], manifest);
+    expect(errors).toContainEqual(expect.objectContaining({
+      file: "sample-run-journal.jsonl:2",
+      invariant: "phase-sequence",
+    }));
+  });
+
+  it("accepts activity at the prerequisite approval instant", async () => {
+    const manifest = await readLifecycle(repositoryRoot);
+    expect(validatePhaseSequence([
+      approval("0", "2026-01-01T10:00:00Z"),
+      journalEvent("1", "PHASE-ENTERED", 2, { timestamp: "2026-01-01T10:00:00Z" }),
+    ], manifest)).toEqual([]);
+  });
+
+  it("uses the latest decision at the event time, not any historical approval", async () => {
+    const manifest = await readLifecycle(repositoryRoot);
+    const rejected = approval("0", "2026-01-01T11:00:00Z", "REJECTED");
+    rejected.file = "approvals/phase-0/rejected.json";
+    const restored = approval("0", "2026-01-01T13:00:00Z");
+    restored.file = "approvals/phase-0/restored.json";
+    const errors = validatePhaseSequence([
+      approval("0", "2026-01-01T10:00:00Z"),
+      rejected,
+      journalEvent("1", "PHASE-ENTERED", 2, { timestamp: "2026-01-01T12:00:00Z" }),
+      restored,
+    ], manifest);
+    expect(messages(errors)).toContain("no approved prerequisite decision at that time");
+  });
+
+  it.each(["PHASE-REOPENED", "BLOCKER", "ARTIFACTS-RECORDED"])(
+    "rejects downstream work after upstream %s until fresh approval",
+    async (eventType) => {
+      const manifest = await readLifecycle(repositoryRoot);
+      const restored = approval("0", "2026-01-01T13:00:00Z");
+      restored.file = "approvals/phase-0/restored.json";
+      const errors = validatePhaseSequence([
+        approval("0", "2026-01-01T10:00:00Z"),
+        journalEvent("0", eventType, 2, {
+          timestamp: "2026-01-01T11:00:00Z", artifactHashes: binding,
+        }),
+        journalEvent("1", "PHASE-ENTERED", 3, { timestamp: "2026-01-01T12:00:00Z" }),
+        restored,
+      ], manifest);
+      expect(messages(errors)).toContain("requires fresh approval");
+    },
+  );
+
+  it("preserves valid earlier activity across a later reopen and reapproval", async () => {
+    const manifest = await readLifecycle(repositoryRoot);
+    const restored = approval("0", "2026-01-01T13:00:00Z");
+    restored.file = "approvals/phase-0/restored.json";
+    expect(validatePhaseSequence([
+      approval("0", "2026-01-01T10:00:00Z"),
+      journalEvent("1", "PHASE-ENTERED", 2, { timestamp: "2026-01-01T10:30:00Z" }),
+      journalEvent("0", "PHASE-REOPENED", 3, { timestamp: "2026-01-01T11:00:00Z" }),
+      restored,
+      journalEvent("1", "ARTIFACTS-RECORDED", 4, {
+        timestamp: "2026-01-01T14:00:00Z", artifactHashes: binding,
+      }),
+    ], manifest)).toEqual([]);
+  });
+
+  it("rejects backfilled prerequisite approval through full case validation", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "aff-chronology-"));
+    try {
+      const caseRoot = path.join(root, "cases", "valid-case");
+      await cp(path.join(repositoryRoot, "schemas"), path.join(root, "schemas"), { recursive: true });
+      await cp(path.join(repositoryRoot, ".github"), path.join(root, ".github"), { recursive: true });
+      await cp(path.join(repositoryRoot, "test", "fixtures", "cases", "valid-case"), caseRoot, { recursive: true });
+      const event = journalEvent("1", "PHASE-ENTERED", 2, {
+        caseName: "valid-case",
+        timestamp: "2020-01-01T09:00:00Z",
+        actor: "AFF-1-requirements",
+      });
+      await appendFile(
+        path.join(caseRoot, "sample-run-journal.jsonl"),
+        `${JSON.stringify(event.value)}\n`,
+      );
+      const result = await validateCase(root, "cases/valid-case", { home: path.join(root, "home") });
+      expect(result.errors).toContainEqual(expect.objectContaining({
+        invariant: "phase-sequence",
+        file: "sample-run-journal.jsonl:2",
+        message: expect.stringContaining("before approval"),
+      }));
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });

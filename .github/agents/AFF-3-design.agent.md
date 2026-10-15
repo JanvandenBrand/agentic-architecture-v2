@@ -89,6 +89,10 @@ communicate the concern clearly.
 
 ## Outputs
 
+Before recording candidate hashes, use the render-case-html skill or hand case/phase ID, authoritative
+Markdown, metadata, and matching HTML path to AFF-0 for `aff-render phase`. Check fidelity and include
+the resulting phase HTML in the candidate. Repeat after source changes, before review and human approval.
+
 - `3-azure-design/<artifactPrefix>-azure-design.md`
 - `3-azure-design/<artifactPrefix>-azure-design.html`
 - `3-azure-design/<artifactPrefix>-design-catalogue.json`

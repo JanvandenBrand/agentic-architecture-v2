@@ -61,6 +61,10 @@ npm run test:smoke
 npm run test:hosts
 ```
 
+The runner limits parallel test workers to two because the integration suites copy complete
+synthetic cases and verify signatures. Assertions and test timeouts are unchanged; this avoids
+filesystem contention during a full run.
+
 Run `npm run test:renderer` for changes to Markdown handling, sanitisation, links, assets, paths,
 hash-bound rendering, or renderer command behaviour. The Contoso smoke is offline and synthetic; it
 must not call a model, access Azure, or create a real approval.

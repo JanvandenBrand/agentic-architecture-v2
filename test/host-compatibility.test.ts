@@ -85,9 +85,11 @@ describe("offline host compatibility", () => {
           event.summary = "Isolated signed regression fixture; not a real architecture approval.";
         }
       }
-      await writeFile(journalPath, `${events.map((event) => JSON.stringify(event)).join("\n")}\n`);
+      const beforeDecision = events.filter((event) => event.sequence < 5);
+      await writeFile(journalPath, `${beforeDecision.map((event) => JSON.stringify(event)).join("\n")}\n`);
       const context = await prepareApproval({
         repositoryRoot: fixture, casePath, phaseId: "0", home,
+        intent: { decision: "APPROVED", decidedAt: "2026-01-01T09:05:00Z" },
       });
       expect(context.schemaVersion).toBe(schemaVersion);
       const decision = await recordSignedDecision({
@@ -97,6 +99,7 @@ describe("offline host compatibility", () => {
       const original = JSON.parse(await readFile(path.join(caseRoot, decision.file), "utf8"));
       expect(original.schemaVersion).toBe(schemaVersion);
       expect(verifyApprovalSignature(original)).toEqual({ verified: true });
+      await writeFile(journalPath, `${events.map((event) => JSON.stringify(event)).join("\n")}\n`);
       await cp(fixture, workspace, { recursive: true });
       const copiedCase = path.join(workspace, casePath);
       const before = await sourceBytes(copiedCase);

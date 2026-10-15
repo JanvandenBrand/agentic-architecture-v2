@@ -14,13 +14,66 @@ npm run render -- phase --case cases\contoso-permit-services --phase 0 `
   --output 0-coordination\contoso-coordination.html
 ```
 
+Render one review round, before convergence or human approval:
+
+```powershell
+npm run render -- review --case cases\contoso-permit-services --phase 1 --reviewer AFF-A --round 1 `
+  --source reviews\aff-a\1\round-1\contoso-aff-a-review.md `
+  --metadata reviews\aff-a\1\round-1\contoso-aff-a-review.json `
+  --output reviews\aff-a\1\round-1\contoso-aff-a-review.html
+```
+
+Use `AFF-B` and `aff-b` in the corresponding paths for the Security and Compliance Reviewer.
+All three files must share the exact contracted basename and reviewer/phase/round directory.
+
 Render the cumulative view after case validation and human approval:
 
 ```powershell
 npm run render -- overview --case cases\contoso-permit-services
 ```
 
-The equivalent built commands are `aff-render phase ...` and `aff-render overview ...`.
+The equivalent built commands are `aff-render phase ...`, `aff-render review ...`, and
+`aff-render overview ...`.
+
+## Producer handoff and hashing order
+
+1. The phase owner writes authoritative Markdown and catalogues. Owners without `execute` (AFF-1,
+   AFF-2, AFF-4) return the case, phase, source/metadata paths, and exact HTML output path to AFF-0.
+   AFF-0 executes `phase` rendering and returns the generated path/hash for the owner's fidelity check.
+   Owners with `execute` may render their own phase through the same skill.
+2. Record the complete candidate hashes, including phase HTML, before review.
+3. Each reviewer writes the round's Markdown and JSON against those candidate hashes and returns
+   reviewer, phase, round, and the three exact paths to AFF-0. AFF-0 executes `review` rendering without
+   changing either authoritative source, then returns the output path/hash for reviewer fidelity checking.
+   Reviewers never execute commands, dispatch another agent, or hand-write HTML.
+4. Resolve findings, regenerate affected phase HTML, and repeat reviews as needed. Render both final
+   reviews before the human gate; only after approval regenerate `solution-overview.html`.
+
+Review rendering requires the canonical `0-coordination\<artifactPrefix>-model-plan.json`, validates
+the declared contract, host/provider and active assignments, identity and subject hashes, but does not
+run completed-case validation. A non-final or `DIVERGES` record is renderable; rendering is neither
+approval nor evidence that both reviewers converged. Runtime model identity is not attested by rendering.
+Never bind a review's own Markdown, JSON, or HTML in its `subjectArtifacts`, or edit JSON to add the
+generated HTML hash. The HTML embeds hashes of the two sources and model plan, avoiding a circular hash.
+
+Approval records bind the review JSON, not the separate reviewer Markdown/HTML files. The source
+hashes embedded in review HTML describe the rendering inputs; `validateCase` does not compare those
+HTML metadata hashes with current reviewer Markdown. Regenerate and check fidelity when a review
+source changes. Do not present the separate narrative/view as independently signed approval evidence.
+
+Phase metadata auto-discovery includes only catalogued AFF JSON paths in the phase source folder.
+Ordinary application JSON (for example `package.json`) remains case evidence and can still be
+hash-bound, but is not automatically treated as an AFF metadata record. Explicitly passing non-AFF
+metadata fails rather than silently ignoring it.
+
+Nonzero phase rendering also reads the Phase 0 identity anchors for consistent case name, prefix and
+schema version. Those anchors are validation context, not displayed phase metadata; they need not be
+repeated in `--metadata`. This does not require a completed case or human approval.
+
+The exported API is `renderReviewHtml(options: RenderReviewOptions): Promise<void>`. Options are
+`repositoryRoot`, repository-relative `casePath`, `phaseId`, `reviewer` (`AFF-A` or `AFF-B`), positive
+integer `round`, case-relative `sourcePath`, `metadataPath`, `outputPath`, and optional
+`requireVisualDiagrams`. Both the function and option type are exported from the package entry point.
 
 ## Contract compatibility
 
@@ -43,7 +96,7 @@ All case content is untrusted. The renderer:
 - embeds fixed CSS and, for overview tabs only, a small fixed script with no case-supplied code;
 - declares a restrictive `Content-Security-Policy` meta element in every generated document, so a
   browser blocks remote loading, framing, form submission, and base-URI rewriting even if sanitisation
-  were ever bypassed. Phase HTML uses `script-src 'none'`; only the tabbed solution overview relaxes
+  were ever bypassed. Phase and review HTML use `script-src 'none'`; only the tabbed solution overview relaxes
   this to `'unsafe-inline'` for its fixed navigation script;
 - validates case records and journal-to-approval hash bindings before an overview can look approved;
 - writes through an atomic same-directory replacement.
@@ -55,7 +108,7 @@ and junction escapes are rejected where the operating system exposes them.
 
 | Input | Limit |
 | --- | ---: |
-| Phase Markdown | 1 MiB |
+| Phase or review Markdown | 1 MiB |
 | Each metadata JSON file | 512 KiB |
 | Each embedded image | 5 MiB |
 | Generated HTML | 10 MiB |
@@ -65,9 +118,10 @@ descriptive alternative text.
 
 ## Output and accessibility
 
-Phase HTML includes semantic landmarks, a skip link, stable phase-prefixed heading IDs, a generated
+Phase and review HTML include semantic landmarks, a skip link, stable phase-prefixed heading IDs, a generated
 table of contents, visible keyboard focus, responsive and print styles, table headers, code labels, and
-source SHA-256 metadata. The cumulative overview adds keyboard-operable tabs with explicit selected and
+source SHA-256 metadata. Review HTML also displays the complete escaped structured review record.
+The cumulative overview adds keyboard-operable tabs with explicit selected and
 hidden state.
 
 The HTML is a generated view. Markdown, catalogues, journal events, reviews, and approvals remain

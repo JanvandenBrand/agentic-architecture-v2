@@ -1,5 +1,5 @@
 import { isRecord } from "../common/json.js";
-import { verifyApprovalSignature } from "../identity/signature.js";
+import { readSignature, verifyApprovalSignature } from "../identity/signature.js";
 import type { LoadedRecord } from "./records.js";
 
 export interface Binding {
@@ -97,6 +97,8 @@ export function asApproval(record: LoadedRecord): Approval | undefined {
   ) {
     return undefined;
   }
+  const signatureVerified = verifyApprovalSignature(value).verified;
+  const signature = signatureVerified ? readSignature(value) : undefined;
   return {
     file: record.file,
     phaseId: value.phaseId,
@@ -109,10 +111,9 @@ export function asApproval(record: LoadedRecord): Approval | undefined {
       isRecord(value.extensions) &&
       value.extensions.syntheticTestEvidence === true &&
       value.extensions.realApproval === false,
-    signatureVerified: verifyApprovalSignature(value).verified,
-    ...(isRecord(value.extensions) &&
-    typeof value.extensions.keyFingerprint === "string"
-      ? { keyFingerprint: value.extensions.keyFingerprint }
+    signatureVerified,
+    ...(signature
+      ? { keyFingerprint: signature.keyFingerprint }
       : {}),
     ...(isRecord(value.extensions) &&
     isRecord(value.extensions.keyRotation) &&

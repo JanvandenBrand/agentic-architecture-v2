@@ -66,6 +66,8 @@ Invoke-Item .\.aff-smoke\contoso-review\cases\contoso-permit-services\solution-o
 
 **Success:** the framework validates, every offline assertion passes, the report records zero live model
 calls and zero Azure actions, and the overview labels its approval as synthetic test evidence.
+Those zero counters describe the harness by construction, not measured host activity. The report
+separates generated-evidence checks from checks of policy declarations.
 
 This proves the framework is internally consistent. It does **not** prove model quality, Azure access,
 deployment, runtime behaviour, or real human approval. Delete `.\.aff-smoke\contoso-review` when done.
@@ -81,8 +83,9 @@ npm run identity:create
 You choose a **label** — a role such as `Accountable architect` keeps a personal name out of case
 folders — and a **passphrase**. The passphrase is never stored and cannot be recovered.
 
-Creating the key also switches on a policy for this machine: a real human decision must be signed. Skip
-this stage and approvals still work, but they are recorded as `self-asserted`.
+The approval command requires an identity. Creating the key also switches on a policy for this machine:
+a real human decision must be signed. Without an identity, offline evaluation still works and the
+validator can read legacy `self-asserted` records, but the command cannot create a new decision.
 
 ### 3 · Connect GitHub Copilot
 
@@ -114,6 +117,11 @@ New-Item -ItemType Directory .\cases\<case-name>\input
 Add the architecture brief and supporting evidence. Use
 `cases/_template/input/architecture-brief.md` as a starting point. **Never include credentials, tokens,
 or unnecessary personal or regulated data.** Case folders stay local and are never committed.
+
+Supply readable Markdown or plain text for the first trial. AFF does not bundle converters for Word,
+PDF, PowerPoint, or Excel. If a brief arrives in those formats, have a human convert and review it,
+retain the original locally, and record the conversion tool, source, and any loss in the input inventory.
+Unreadable or unverified conversions are blockers, not permission to invent missing content.
 
 Then invoke `AFF-0-coordinator`. Do not start with AFF-1: Phase 0 establishes the source inventory,
 model plan, shared records, interview preparation, and review routing.
@@ -150,6 +158,23 @@ Phases 7 and 8 are never automatic; they need separate human invocation.
 
 For the fuller walkthrough with expected evidence and cleanup, see the
 [quick start](docs/quick-start.md). For failures, see [troubleshooting](docs/troubleshooting.md).
+
+### Rendering handoff
+
+AFF-1, AFF-2 and AFF-4 author the phase Markdown/catalogues and ask AFF-0 to run the phase renderer.
+Each reviewer authors its Markdown/JSON and asks AFF-0 to run `render -- review`. Reviewers do not
+receive execution or delegation tools. The author checks the returned HTML for fidelity before its
+hashes enter the review or human-gate package.
+
+```powershell
+npm run render -- review --case cases\<case-name> --phase 0 --reviewer AFF-A --round 1 `
+  --source reviews\aff-a\0\round-1\<artifactPrefix>-aff-a-review.md `
+  --metadata reviews\aff-a\0\round-1\<artifactPrefix>-aff-a-review.json `
+  --output reviews\aff-a\0\round-1\<artifactPrefix>-aff-a-review.html
+```
+
+Use AFF-B and `aff-b` paths for the other reviewer. Render before human approval, without changing the
+review's Markdown or JSON. See [renderer guidance](docs/aff-renderer.md) for the exact ordering.
 
 ## Claude Code manual for testers
 
@@ -302,7 +327,10 @@ The private key is passphrase-protected and stored in your user profile, outside
 area agents work in. The signature covers the whole decision — phase, verdict, approver, time, artifact
 hashes — so it cannot be lifted onto an altered record. Rejections are signed too.
 
-An agent can still write an approval file; it simply cannot produce a valid one. See
+An agent with file access can still write a record or create its own key. Signatures prove integrity
+and continuity from the case's first verified key, not that the first key belongs to a particular person.
+The human must verify that initial fingerprint. Key custody and human-only signing remain essential.
+The decision writer preserves earlier decisions instead of replacing them. See
 [`docs/aff-contracts.md`](docs/aff-contracts.md) for the machine policy, key rotation, and the limits
 that remain.
 
@@ -392,7 +420,7 @@ Copilot defaults come from the lifecycle manifest. Claude defaults come from the
 [Claude guide](docs/claude-code.md). Case assignments, once confirmed, govern the actual work.
 
 <!-- BEGIN GENERATED: AFF-LIFECYCLE-ROSTER -->
-Lifecycle `2.1.0`; lifecycle-manifest schema `1.0.0`. Source: [`.github/agents/AFF-LIFECYCLE.json`](.github/agents/AFF-LIFECYCLE.json).
+Lifecycle `2.2.0`; lifecycle-manifest schema `1.0.0`. Source: [`.github/agents/AFF-LIFECYCLE.json`](.github/agents/AFF-LIFECYCLE.json).
 
 | ID | Agent profile | Display name | Copilot default | Claude default | Route or gate |
 |---|---|---|---|---|---|
@@ -415,7 +443,8 @@ Lifecycle `2.1.0`; lifecycle-manifest schema `1.0.0`. Source: [`.github/agents/A
 - **Independent review:** the Rubber Duck Reviewer uses a different model from every phase owner.
 - **Evidence-bound convergence:** both reviewers must cover identical artifact hashes.
 - **Signed human decisions:** approvals and rejections are signed with a passphrase-protected key that no
-  agent can use. On a machine holding that key, an unsigned decision is rejected.
+  agent is permitted to use. On a machine holding an identity, an unsigned real decision is rejected;
+  the human still verifies the first case key.
 - **Enforced phase order:** a phase cannot be entered, evidenced, or approved until its predecessor holds
   an approved decision.
 - **Compact outputs:** each phase produces one authoritative Markdown document and safe HTML rendering.

@@ -79,6 +79,19 @@ footer.page{border-top:1px solid var(--border);margin-top:3rem;padding:1.5rem 0 
 <main id="content">
 <div class="wrap">
 
+<div class="callout warn">
+  <h2>Tool 1.3.0 clarification</h2>
+  <p>The discussion below is a historical design record, not the current operating procedure.
+  Key identity now comes from verified signature data, and cross-key transitions require
+  predecessor-key authorisation. A rotation declaration alone is insufficient; lost-key recovery
+  is blocked. New decisions are published without replacing previous files. The first case key
+  still needs independent human fingerprint verification; signatures and local policy do not prove
+  personal identity or isolate signing from an agent with file access.</p>
+  <p>Use the current <a href="../aff-contracts.md">contract guidance</a> and
+  <a href="../migrations/tool-1.2.0-to-1.3.0.md">tool upgrade note</a>. Neither historical schema
+  version is rewritten, and optional deployment authorisations remain blocked.</p>
+</div>
+
 <h2>Why this discussion happened</h2>
 
 <p>A full audit of the repository produced one finding that outranked the rest. The framework's headline

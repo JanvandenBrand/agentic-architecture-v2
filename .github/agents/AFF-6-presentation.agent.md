@@ -66,6 +66,10 @@ slides.
 
 ## Outputs
 
+Before recording candidate hashes, use the render-case-html skill or hand case/phase ID, authoritative
+Markdown, metadata, and matching HTML path to AFF-0 for `aff-render phase`. Check fidelity and include
+the resulting phase HTML in the candidate. Repeat after source changes, before review and human approval.
+
 - `6-presentation/<artifactPrefix>-presentation.md`
 - `6-presentation/<artifactPrefix>-presentation.html`
 - `6-presentation/<artifactPrefix>-claim-catalogue.json`

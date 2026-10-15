@@ -32,8 +32,15 @@ function syntaxError(file: string, message: string): ValidationError {
     file,
     invariant: "json-syntax",
     message,
-    remediation: "Correct the JSON syntax and run validation again.",
+    remediation: "Correct the JSON syntax or UTF-8 encoding and run validation again.",
   };
+}
+
+export function isCataloguedRecordPath(
+  registry: SchemaRegistry,
+  file: string,
+): boolean {
+  return expectedRecordType(registry, file.replaceAll("\\", "/"), undefined) !== undefined;
 }
 
 function expectedRecordType(
@@ -41,10 +48,13 @@ function expectedRecordType(
   file: string,
   schemaVersion: unknown,
 ): string | undefined {
-  return registry.catalogue.schemas.find((entry) =>
-    entry.schemaVersion === schemaVersion &&
+  const matches = registry.catalogue.schemas.filter((entry) =>
+    registry.catalogue.supportedContractVersions.includes(entry.schemaVersion) &&
     entry.patterns.some((pattern) => minimatch(file, pattern)),
-  )?.recordType;
+  );
+  // Paths reserved by another version still require AFF validation; schema
+  // dispatch and location checks below never fall back to that version.
+  return (matches.find((entry) => entry.schemaVersion === schemaVersion) ?? matches[0])?.recordType;
 }
 
 function locationErrors(
@@ -52,19 +62,26 @@ function locationErrors(
   file: string,
   schemaVersion: unknown,
   recordType: string,
+  diagnosticFile = file,
 ): ValidationError[] {
   const entry = typeof schemaVersion === "string"
     ? getSchemaEntry(registry, schemaVersion, recordType)
     : undefined;
-  if (!entry || entry.patterns.some((pattern) => minimatch(file, pattern))) {
+  const patterns = entry?.patterns ?? registry.catalogue.schemas
+    .filter((candidate) =>
+      candidate.recordType === recordType &&
+      registry.catalogue.supportedContractVersions.includes(candidate.schemaVersion),
+    )
+    .flatMap((candidate) => candidate.patterns);
+  if (patterns.length === 0 || patterns.some((pattern) => minimatch(file, pattern))) {
     return [];
   }
   return [
     {
-      file,
+      file: diagnosticFile,
       invariant: "record-location",
       message: `Record type "${recordType}" is not allowed at this path.`,
-      remediation: `Move it to a catalogued path: ${entry.patterns.join(" or ")}.`,
+      remediation: `Move it to a catalogued path: ${[...new Set(patterns)].join(" or ")}.`,
     },
   ];
 }
@@ -73,22 +90,31 @@ function validateParsedRecord(
   registry: SchemaRegistry,
   file: string,
   value: unknown,
+  diagnosticFile = file,
 ): { record?: LoadedRecord["value"]; errors: ValidationError[] } {
   const expected = expectedRecordType(
     registry, file, isRecord(value) ? value.schemaVersion : undefined,
   );
-  const schemaErrors = validateRecordSchema(registry, file, value, expected);
+  const recordType =
+    isRecord(value) && typeof value.recordType === "string" ? value.recordType : undefined;
+  const knownRecordType = recordType !== undefined &&
+    registry.catalogue.schemas.some((entry) =>
+      entry.recordType === recordType &&
+      registry.catalogue.supportedContractVersions.includes(entry.schemaVersion),
+    );
+  if (!expected && !knownRecordType) {
+    return { errors: [] };
+  }
+  const schemaErrors = validateRecordSchema(registry, diagnosticFile, value, expected);
   if (!isRecord(value)) {
     return { errors: schemaErrors };
   }
 
-  const recordType =
-    typeof value.recordType === "string" ? value.recordType : undefined;
   const errors = [
     ...schemaErrors,
-    ...(recordType ? locationErrors(registry, file, value.schemaVersion, recordType) : []),
+    ...(recordType ? locationErrors(registry, file, value.schemaVersion, recordType, diagnosticFile) : []),
   ];
-  return schemaErrors.length === 0
+  return errors.length === 0
     ? { record: value, errors }
     : { errors };
 }
@@ -104,12 +130,12 @@ async function loadJsonFile(
   try {
     value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(content));
   } catch (error: unknown) {
-    if (!(error instanceof SyntaxError)) {
+    if (!(error instanceof SyntaxError) && !(error instanceof TypeError)) {
       throw error;
     }
     return {
       records: [],
-      errors: [syntaxError(file, `Invalid JSON: ${error.message}`)],
+      errors: [syntaxError(file, `Invalid JSON or UTF-8: ${error.message}`)],
     };
   }
 
@@ -118,19 +144,32 @@ async function loadJsonFile(
   }
 
   const validated = validateParsedRecord(registry, file, value);
+  if (!validated.record) {
+    return { records: [], errors: validated.errors };
+  }
+  let snapshotSha256: string;
+  try {
+    snapshotSha256 = hashArtifactBytes(absolutePath, content);
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError) && !(error instanceof TypeError)) {
+      throw error;
+    }
+    return { records: [], errors: [syntaxError(file, `Cannot canonicalize JSON: ${error.message}`)] };
+  }
   return {
-    records: validated.record
-      ? [
-          {
-            file,
-            absolutePath,
-            snapshotSha256: hashArtifactBytes(absolutePath, content),
-            value: validated.record,
-          },
-        ]
-      : [],
+    records: [{ file, absolutePath, snapshotSha256, value: validated.record }],
     errors: validated.errors,
   };
+}
+
+function* byteLines(content: Buffer): Generator<Buffer> {
+  let start = 0;
+  let end: number;
+  while ((end = content.indexOf(0x0a, start)) !== -1) {
+    yield content.subarray(start, end);
+    start = end + 1;
+  }
+  yield content.subarray(start);
 }
 
 async function loadJsonLinesFile(
@@ -140,52 +179,59 @@ async function loadJsonLinesFile(
 ): Promise<LoadedCaseRecords> {
   const absolutePath = path.join(caseRoot, file);
   const content = await readFile(absolutePath);
-  const snapshotSha256 = hashArtifactBytes(absolutePath, content);
-  const lines = new TextDecoder("utf-8", { fatal: true })
-    .decode(content)
-    .split(/\r?\n/u);
-  const records: LoadedRecord[] = [];
+  const parsedRecords: { file: string; value: LoadedRecord["value"] }[] = [];
   const errors: ValidationError[] = [];
+  let parseFailed = false;
+  let index = 0;
 
-  for (const [index, line] of lines.entries()) {
-    if (line.trim() === "") {
-      continue;
-    }
-    const lineFile = `${file}:${index + 1}`;
+  for (const bytes of byteLines(content)) {
+    const lineFile = `${file}:${++index}`;
     let value: unknown;
     try {
+      // A BOM is valid only at the beginning of the file, matching canonical hashing.
+      const line = new TextDecoder("utf-8", { fatal: true, ignoreBOM: index > 1 }).decode(bytes);
+      if (line.trim() === "") {
+        continue;
+      }
       value = JSON.parse(line);
     } catch (error: unknown) {
-      if (!(error instanceof SyntaxError)) {
+      if (!(error instanceof SyntaxError) && !(error instanceof TypeError)) {
         throw error;
       }
-      errors.push(syntaxError(lineFile, `Invalid JSONL event: ${error.message}`));
+      errors.push(syntaxError(lineFile, `Invalid JSONL or UTF-8: ${error.message}`));
+      parseFailed = true;
       continue;
     }
 
     if (file.startsWith("input/")) {
       continue;
     }
-    const expected = expectedRecordType(
-      registry, file, isRecord(value) ? value.schemaVersion : undefined,
-    );
-    const schemaErrors = validateRecordSchema(registry, lineFile, value, expected);
-    const recordType =
-      isRecord(value) && typeof value.recordType === "string"
-        ? value.recordType
-        : undefined;
-    errors.push(
-      ...schemaErrors,
-      ...(recordType && isRecord(value)
-        ? locationErrors(registry, file, value.schemaVersion, recordType)
-        : []),
-    );
-    if (schemaErrors.length === 0 && isRecord(value)) {
-      records.push({ file: lineFile, absolutePath, snapshotSha256, value });
+    const validated = validateParsedRecord(registry, file, value, lineFile);
+    errors.push(...validated.errors);
+    if (validated.record) {
+      parsedRecords.push({ file: lineFile, value: validated.record });
     }
   }
 
-  return { records, errors };
+  if (parseFailed || parsedRecords.length === 0) {
+    return { records: [], errors };
+  }
+  let snapshotSha256: string;
+  try {
+    snapshotSha256 = hashArtifactBytes(absolutePath, content);
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError) && !(error instanceof TypeError)) {
+      throw error;
+    }
+    return {
+      records: [],
+      errors: [...errors, syntaxError(file, `Cannot canonicalize JSONL: ${error.message}`)],
+    };
+  }
+  return {
+    records: parsedRecords.map((record) => ({ ...record, absolutePath, snapshotSha256 })),
+    errors,
+  };
 }
 
 export async function loadCaseRecords(

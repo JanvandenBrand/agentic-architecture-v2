@@ -86,6 +86,18 @@ Hash bindings use lower-case SHA-256 over these canonical bytes:
 Paths in records use `/`, are relative to the case root, and cannot contain parent traversal. Editing
 an artifact after review changes its canonical hash and invalidates the review and approval bindings.
 
+## Records and ordinary artifacts
+
+Catalogue paths and recognised AFF `recordType` values identify governed records. A recognised AFF
+record at the wrong path remains an error. Ordinary application JSON (for example `package.json` or
+`appsettings.json`) and domain-specific JSON are artifacts, not AFF records. They still require
+syntactically valid data, candidate coverage, and matching hashes when bound. A domain's own
+`recordType` field does not turn it into an AFF record. Source files beneath `input/` remain syntax-only
+inputs rather than governed records.
+
+Malformed JSONL and invalid UTF-8 are reported as file-specific validation errors; a malformed line
+includes its line number. The validator never invents a snapshot hash for unreadable evidence.
+
 ## Phase sequence
 
 The `phase-sequence` invariant enforces the lifecycle order against case records instead of trusting
@@ -95,14 +107,21 @@ agent behaviour. For every phase that has a human approval, an `ARTIFACTS-RECORD
 - the preceding phase in `standardRoute` holds a latest human approval with decision `APPROVED`;
 - every `approved-phase-<id>` entry in the phase's `requires` list holds the same;
 - an approval instant is never earlier than the approval instant of a phase it depends on.
+- each entry and candidate event has an approved prerequisite decision at that event's own time,
+  not merely an approval added later;
+- a prerequisite reopening, blocker, or new candidate after that decision requires fresh approval
+  before downstream work.
 
-A phase therefore cannot be entered, evidenced, or approved before its predecessor is approved.
+Historical decisions are used for historical events, so a valid earlier entry is not judged against
+a future reapproval. Equal timestamps are accepted at the recorded precision; events must not be
+backdated. The current approved state is checked separately. These checks verify recorded chronology,
+not the wall-clock truth of agent-written timestamps.
 
 Phases 7 and 8 additionally declare `scoped-attempt-authorisation`, `scoped-test-attempt-authorisation`,
 and `phase-7-succeeded`. These have no catalogued record type in contracts `1.0.0` or `1.1.0`, so the validator
 cannot verify them and **fails closed**: entering Phase 7 or Phase 8 reports a `phase-sequence` error
-until the prerequisite is either catalogued as a case record or removed from
-`.github/agents/AFF-LIFECYCLE.json`.
+until the prerequisite has a separately approved evidence contract. Do not remove it, make it
+advisory, or attempt to sign around this block.
 
 ## Approval assurance modes
 
@@ -151,6 +170,17 @@ final reviewer verdicts, and the reviewer records; refuses to offer a decision t
 support; then asks for the passphrase and writes a signed record. Approvals and rejections are both
 signed — a decision is a decision.
 
+Each new decision uses its own file and is published without replacing an existing decision, including
+when concurrent writers target the same name. Both the displayed evidence and the proposed decision
+must still be valid immediately before signing. `DIVERGES` may be rejected but cannot be approved.
+A rejection still binds to one converged candidate and final reviewer pair; this release does not add
+an unsigned or divergent-hash rejection path.
+
+The filename includes the UTC decision instant. Complete bytes are staged and published through an
+exclusive hard link; a filesystem without that capability fails closed, with no replacing-write
+fallback. Prepare the decision again if case evidence or the local identity changes after presentation.
+These snapshot checks are not a filesystem lock against a hostile concurrent actor.
+
 The signature covers the canonical JSON of the whole approval record with only `extensions.signature`
 removed, so the phase, decision, approver, decision time, artifact hashes, reviewer records, key
 fingerprint, and declared mode are all protected. Signing the artifact hashes alone would let a valid
@@ -160,27 +190,35 @@ Two continuity rules follow:
 
 - **No downgrade.** Once a case holds a verified decision, every decision recorded from that moment must
   also be verified.
-- **One key per case.** A decision signed by a different key than the case is anchored to is rejected
-  unless it records an explicit `extensions.keyRotation` naming the previous fingerprint and the reason.
-  A forgotten passphrase cannot be cryptographically bridged, so a rotation is a visible break in the
-  chain rather than a silent substitution.
+- **Verified key continuity.** Key identity comes from the verified signature, not an optional outer
+  label. A redundant fingerprint must match. A different key needs a predecessor-key authorisation
+  bound to the exact transition and decision; a claimed previous fingerprint and reason alone do not
+  authorise rotation. Lost-key recovery is not supported by silently accepting a new key.
 
-> **What this does not do.** Verification is not access control. An agent may still write an approval
-> file; it simply cannot produce a valid signature without the passphrase, so its record fails
-> validation. Two limits remain, and are accepted deliberately: a human who types the passphrase on an
-> agent's request has delegated their authority, which is not forgery; and a machine that has never held
-> an approval key has no expectation to measure against, so `self-asserted` remains legitimate there.
-> The control moves forgery from writing one JSON file to obtaining a passphrase that is never stored.
+The programmatic rotation proof is stored in `extensions.keyRotation` with
+`previousKeyFingerprint`, `newKeyFingerprint`, a non-empty `reason`, `algorithm: "ed25519"`, and
+base64 `value`. Its predecessor signature covers the domain `AFF-APPROVAL-KEY-ROTATION-v1` and the
+exact new decision payload, including the old/new keys. It cannot be reused for a different case,
+decision, or residual-gap acceptance. The chain advances only after verification.
+The module helpers `signKeyRotation`, `verifyKeyRotation`, and `verifyKeyTransition` implement this
+capability; the standard CLI does not add a rotation/recovery wizard. It does not ask an agent to
+collect an old or new passphrase. Historical declarations without proof fail rather than being rewritten.
+
+> **What this does not do.** Verification is not access control. A process with file access can create
+> a key and rewrite a whole case. The first verified key is a local trust anchor, not independently
+> authenticated identity; compare its fingerprint with the intended architect's key through a trusted
+> channel. Continuity protects later records only while that history is retained. A person revealing
+> their passphrase delegates its authority. A machine without an identity can still validate
+> `self-asserted` legacy records. None of these facts makes an agent-authored statement a human decision.
 
 ## Machine approval policy
 
 Creating an architect identity also sets a policy on that machine: **a real human decision must be
 signed.** `requireSignedApprovals` is written into `architect.pub` as `true`, and validation reads it.
 
-This closes the remaining gap. Without it, an agent never needed to forge a signature — it could simply
-write an *unsigned* approval and have it accepted as `self-asserted`, because that mode is legitimate.
-With a key present, an unsigned real decision becomes a validation failure, so there is no route to a
-valid approval on your machine that does not pass through your passphrase.
+This rejects unsigned real decisions on that machine. It is not an external identity service and does
+not, by itself, prove who owns an embedded signing key. Verify the initial case fingerprint and keep
+the signing identity separate from the agent's work area.
 
 The policy degrades correctly rather than spreading:
 

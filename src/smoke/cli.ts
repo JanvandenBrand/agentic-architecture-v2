@@ -62,6 +62,9 @@ export async function runSmokeCli(argv: string[]): Promise<number> {
     );
     console.log(result.boundary);
     console.log(
+      `${result.assertionBasis.generatedEvidence} generated-evidence checks; ${result.assertionBasis.policyDeclarations} policy-declaration checks. Zero model/Azure counters are by construction, not runtime measurements.`,
+    );
+    console.log(
       keepOutputPath
         ? `Retained generated output at ${keepOutputPath}.`
         : "Generated workspace was removed after validation.",

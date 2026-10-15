@@ -246,4 +246,22 @@ describe("architect adoption and release surfaces", () => {
     );
     expect(migrations).toContain("rollback or safe-stop guidance");
   });
+
+  it("documents the remediation upgrade without weakening historical evidence", async () => {
+    const [readme, contracts, migration, changelog] = await Promise.all([
+      read("README.md"),
+      read("docs/aff-contracts.md"),
+      read("docs/migrations/tool-1.2.0-to-1.3.0.md"),
+      read("CHANGELOG.md"),
+    ]);
+    expect(readme).toContain("The approval command requires an identity.");
+    expect(readme).toContain("AFF does not bundle converters");
+    expect(readme).toContain("by construction, not measured host activity");
+    expect(contracts).toContain("Historical decisions are used for historical events");
+    expect(contracts).toContain("claimed previous fingerprint and reason alone do not");
+    expect(contracts).toContain("Do not remove it, make it");
+    expect(migration).toContain("Do not migrate or rewrite case files");
+    expect(migration).toContain("Lost-key recovery is not automated.");
+    expect(changelog).toContain("## [1.3.0]");
+  });
 });

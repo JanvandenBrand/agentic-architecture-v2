@@ -20,12 +20,12 @@ interface Prerequisite {
   reason: string;
 }
 
-interface PhasePrerequisites {
+export interface PhasePrerequisites {
   approvals: Prerequisite[];
   unverifiable: string[];
 }
 
-function prerequisitesFor(
+export function prerequisitesFor(
   lifecycle: LifecycleManifest,
   phase: LifecyclePhase,
 ): PhasePrerequisites {
@@ -61,11 +61,10 @@ export function validatePhaseSequence(
   records: LoadedRecord[],
   lifecycle: LifecycleManifest,
 ): ValidationError[] {
-  const approvals = latestApprovals(
-    records
-      .map(asApproval)
-      .filter((approval): approval is Approval => approval !== undefined),
-  );
+  const history = records
+    .map(asApproval)
+    .filter((approval): approval is Approval => approval !== undefined);
+  const approvals = latestApprovals(history);
   const candidates = latestCandidateEvents(records);
   const entries = firstPhaseEntries(records);
   const errors: ValidationError[] = [];
@@ -119,8 +118,65 @@ export function validatePhaseSequence(
         file: evidence.file,
         invariant,
         message: `Phase ${phase.id} ${activity} but its declared prerequisite "${requirement}" has no catalogued case record, so it cannot be verified.`,
-        remediation: `Record "${requirement}" as a catalogued case record before entering phase ${phase.id}, or remove the requirement from .github/agents/AFF-LIFECYCLE.json when it is not evidence-bound.`,
+        remediation: `Keep phase ${phase.id} blocked until "${requirement}" has an approved evidence contract; do not remove or waive the prerequisite.`,
       });
+    }
+  }
+
+  const journal = records.filter(({ value }) => value.recordType === "run-journal-event");
+  const activities = [
+    ...history.map((decision) => ({
+      file: decision.file,
+      phaseId: decision.phaseId,
+      timestamp: decision.decidedAt,
+    })),
+    ...journal.flatMap(({ file, value }) =>
+      (value.eventType === "PHASE-ENTERED" || value.eventType === "ARTIFACTS-RECORDED") &&
+      typeof value.phaseId === "string" && typeof value.timestamp === "string"
+        ? [{ file, phaseId: value.phaseId, timestamp: value.timestamp }]
+        : [],
+    ),
+  ];
+  for (const activity of activities) {
+    const phase = lifecycle.phases.find(({ id }) => id === activity.phaseId);
+    if (!phase) {
+      continue;
+    }
+    const instant = Date.parse(activity.timestamp);
+    for (const prerequisite of prerequisitesFor(lifecycle, phase).approvals) {
+      // Current-state failures are already reported above. Historical checks must
+      // still reject work that preceded approval even if the case was approved later.
+      if (approvals.get(prerequisite.phaseId)?.decision !== "APPROVED") {
+        continue;
+      }
+      const prior = latestApprovals(history.filter((decision) =>
+        decision.phaseId === prerequisite.phaseId &&
+        Date.parse(decision.decidedAt) <= instant,
+      )).get(prerequisite.phaseId);
+      if (prior?.decision !== "APPROVED") {
+        errors.push({
+          file: activity.file,
+          invariant,
+          message: `Phase ${activity.phaseId} activity at ${activity.timestamp} occurred before approval or while phase ${prerequisite.phaseId} had no approved prerequisite decision at that time.`,
+          remediation: "Do not backfill an approval to legitimise earlier work. Preserve the history and resolve the chronology with the accountable architect.",
+        });
+        continue;
+      }
+      const invalidation = journal.find(({ value }) =>
+        value.phaseId === prerequisite.phaseId &&
+        ["PHASE-REOPENED", "BLOCKER", "ARTIFACTS-RECORDED"].includes(String(value.eventType)) &&
+        typeof value.timestamp === "string" &&
+        Date.parse(value.timestamp) > Date.parse(prior.decidedAt) &&
+        Date.parse(value.timestamp) <= instant,
+      );
+      if (invalidation) {
+        errors.push({
+          file: `${activity.file}; ${invalidation.file}`,
+          invariant,
+          message: `Phase ${activity.phaseId} activity at ${activity.timestamp} follows invalidated phase ${prerequisite.phaseId} evidence and requires fresh approval.`,
+          remediation: "Complete the reopened prerequisite and obtain a new human approval before downstream activity.",
+        });
+      }
     }
   }
 

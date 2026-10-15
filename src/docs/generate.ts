@@ -296,7 +296,7 @@ export async function renderContosoEvidence(
       "- `solution-overview.html` — journal-derived cumulative view showing synthetic approval and Phase 1 entry.",
       "- `smoke-report.json` — machine-readable evidence of the offline boundary and passed assertions.",
       "",
-      `The generation run passed ${report.assertionsPassed} executable assertions, made ${report.liveModelCalls} live model calls, and performed ${report.azureActions} Azure actions.`,
+      `The generation run passed ${report.assertionsPassed} assertions: ${report.assertionBasis.generatedEvidence} checks of generated evidence and ${report.assertionBasis.policyDeclarations} policy-declaration checks. The model/Azure counters are zero by construction, not measured live-host activity.`,
       "",
       "## Regenerate and inspect",
       "",

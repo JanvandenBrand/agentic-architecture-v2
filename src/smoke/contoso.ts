@@ -18,7 +18,7 @@ import { isRecord } from "../common/json.js";
 import { validateFramework } from "../framework/index.js";
 import { readLifecycle } from "../framework/lifecycle.js";
 import { readHostModelDefaults, type ExecutionHost } from "../framework/hosts.js";
-import { renderPhaseHtml, renderSolutionOverview } from "../render/index.js";
+import { renderPhaseHtml, renderReviewHtml, renderSolutionOverview } from "../render/index.js";
 import type { ContractVersion } from "../schema/catalogue.js";
 
 const CASE_PATH = "cases/contoso-permit-services";
@@ -60,6 +60,11 @@ export interface ContosoSmokeResult {
   boundary: string;
   syntheticEvidenceNotice: string;
   assertionsPassed: number;
+  assertionBasis: {
+    generatedEvidence: number;
+    policyDeclarations: number;
+  };
+  counterBasis: "by-construction";
   liveModelCalls: number;
   azureActions: number;
   questionsEmitted: string[];
@@ -98,6 +103,7 @@ interface SmokeEvidence {
   requirements: string[];
   phaseMarkdownExists: boolean;
   phaseHtmlExists: boolean;
+  reviewSourcesAndHtmlExist: boolean;
   overviewExists: boolean;
   overviewApproved: boolean;
   routeReady: string;
@@ -448,6 +454,24 @@ export async function buildContosoSmokeWorkspace(
     path.join(caseRoot, ...affBPath.split("/")),
     reviewRecord("AFF-B", models.get("AFF-B-security-compliance")!, artifactHashes, selected.schemaVersion),
   );
+  for (const [reviewer, metadataPath] of [["AFF-A", affAPath], ["AFF-B", affBPath]] as const) {
+    const sourcePath = metadataPath.replace(/\.json$/u, ".md");
+    await writeFile(
+      path.join(caseRoot, ...sourcePath.split("/")),
+      `# ${reviewer} Phase 0 review\n\nSynthetic offline review record, not a live agent verdict.\n\nThe structured record contains the candidate hashes and configured model assignment.\n`,
+      "utf8",
+    );
+    await renderReviewHtml({
+      repositoryRoot: workspaceRoot,
+      casePath: CASE_PATH,
+      phaseId: "0",
+      reviewer,
+      round: 1,
+      sourcePath,
+      metadataPath,
+      outputPath: metadataPath.replace(/\.json$/u, ".html"),
+    });
+  }
   const reviewHashes = await Promise.all(
     [affAPath, affBPath].map(async (reviewPath) => ({
       path: reviewPath,
@@ -793,6 +817,13 @@ async function collectEvidence(workspaceRoot: string): Promise<SmokeEvidence> {
     phaseHtmlExists: await fileExists(
       path.join(caseRoot, "0-coordination", "contoso-coordination.html"),
     ),
+    reviewSourcesAndHtmlExist: (await Promise.all(
+      ["aff-a", "aff-b"].flatMap((reviewer) =>
+        ["md", "html"].map((extension) => fileExists(path.join(
+          caseRoot, "reviews", reviewer, "0", "round-1", `contoso-${reviewer}-review.${extension}`,
+        ))),
+      ),
+    )).every(Boolean),
     overviewExists: await fileExists(
       path.join(caseRoot, "solution-overview.html"),
     ),
@@ -902,7 +933,7 @@ export async function verifyContosoSmokeWorkspace(
     ],
     [
       "Each phase produces compact Markdown and self-contained HTML",
-      evidence.phaseMarkdownExists && evidence.phaseHtmlExists,
+      evidence.phaseMarkdownExists && evidence.phaseHtmlExists && evidence.reviewSourcesAndHtmlExist,
     ],
     [
       "AFF-0 refreshes solution-overview.html only after human approval",
@@ -953,6 +984,20 @@ export async function verifyContosoSmokeWorkspace(
       ),
     ],
   ]);
+  const policyDeclarations = new Set([
+    "Stored credentials",
+    "GitHub OIDC",
+    "Public database access",
+    "Invented landing-zone topology",
+    "Invented legal obligation",
+    "Invented requirement", // Mixed check; conservatively classified with policy declarations.
+    "C-level claims of deployment or runtime readiness",
+  ]);
+  for (const label of policyDeclarations) {
+    if (!mustNotChecks.has(label)) {
+      throw new SmokeError("Assertion classification has drifted from executable checks.");
+    }
+  }
 
   if (!evidence.frameworkValid || !evidence.caseValid) {
     throw new SmokeError(
@@ -998,6 +1043,11 @@ export async function verifyContosoSmokeWorkspace(
       "Synthetic test evidence only. The generated approval is never a real human or architecture approval.",
     assertionsPassed:
       expectations.mustHold.length + expectations.mustNotOccur.length,
+    assertionBasis: {
+      generatedEvidence: mustHoldChecks.size + mustNotChecks.size - policyDeclarations.size,
+      policyDeclarations: policyDeclarations.size,
+    },
+    counterBasis: "by-construction",
     liveModelCalls: 0,
     azureActions: 0,
     questionsEmitted: evidence.questions,

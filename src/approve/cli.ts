@@ -8,6 +8,7 @@ import { Command, CommanderError } from "commander";
 import { readLine, readSecret } from "../identity/prompt.js";
 import {
   ApproveError,
+  assertDecisionReady,
   prepareApproval,
   recordSignedDecision,
   type ApprovalContext,
@@ -39,6 +40,9 @@ function presentEvidence(context: ApprovalContext): void {
   console.log(
     `\nBoth reviewers cover the identical ${context.artifacts.length} artefact hashes.`,
   );
+  if (context.verdicts.some(({ verdict }) => verdict === "DIVERGES")) {
+    console.log("\nDIVERGES: approval is blocked. Only rejection or cancellation is available.");
+  }
   console.log(`\nApprover  ${context.approverLabel}`);
   console.log(`Key       ${context.keyFingerprint}`);
 }
@@ -97,10 +101,14 @@ export async function runApproveCli(argv: string[]): Promise<number> {
             .map((entry) => entry.trim())
             .filter((entry) => entry !== "");
 
+    const decidedAt = new Date().toISOString();
+    const decision = answer === "approve" ? "APPROVED" : "REJECTED";
+    await assertDecisionReady({ context, decision, decidedAt, residualGapAcceptance });
     const passphrase = await readSecret("Passphrase: ");
     const written = await recordSignedDecision({
       context,
-      decision: answer === "approve" ? "APPROVED" : "REJECTED",
+      decision,
+      decidedAt,
       passphrase,
       residualGapAcceptance,
     });

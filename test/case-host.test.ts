@@ -35,7 +35,12 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function record(value: Record<string, unknown>, file = "synthetic-policy-record.json"): LoadedRecord {
+function record(
+  value: Record<string, unknown>,
+  file = value.recordType === "model-plan"
+    ? "0-coordination/sample-model-plan.json"
+    : "synthetic-policy-record.json",
+): LoadedRecord {
   return {
     file,
     absolutePath: path.resolve(file),

@@ -61,6 +61,11 @@ Phase 8 does not feed or modify the C-level presentation.
 
 ## Outputs
 
+For an authorised invoked phase only, use the render-case-html skill or hand case/phase ID,
+authoritative Markdown, metadata, and matching HTML path to AFF-0 for `aff-render phase`. Check
+fidelity before recording candidate hashes and review. This does not supply the missing pre-execution
+authorisation contract or permit entry into this blocked optional phase.
+
 - `8-testing/<artifactPrefix>-test-report.md`
 - `8-testing/<artifactPrefix>-test-report.html`
 - `8-testing/<artifactPrefix>-test-catalogue.json`
